@@ -1,0 +1,3 @@
+<Files "credenciales.env">
+    Require all denied
+</Files>
