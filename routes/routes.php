@@ -104,10 +104,28 @@ return function (App $app) {
 
         // TABLERO DE CAMAS
         $group->group('/tablerocamas', function ($g) {
+            $g->get('/actualizarCamasMarkey', '\App\V2\TableroCamasController:actualizarCamasMarkey');
+            $g->get('/actualizarCamasMarkeyPrueba', '\App\V2\TableroCamasController:actualizarCamasMarkeyPrueba');
             $g->get('/version', '\App\V2\TableroCamasController:versionAutorizada');
+            $g->get('/servicios', '\App\V2\TableroCamasController:serviciosVerTodos');
             $g->get('/serviciosVerUno', '\App\V2\TableroCamasController:serviciosVerUno');
-            $g->get('/permisoModuloPaciente_ver', '\App\V2\TableroCamasController:permisoModuloPaciente_ver');
+            $g->get('/permisoModuloTablero_ver', '\App\V2\TableroCamasController:permisoModuloTablero_ver');
+            $g->get('/permisosModulosTableroServicio', '\App\V2\TableroCamasController:permisosModulosTableroServicio');
             $g->get('/camas', '\App\V2\TableroCamasController:obtenerCamas');
+            $g->get('/verUnaCama', '\App\V2\TableroCamasController:verUnaCama');
+            $g->post('/nuevaAlerta', '\App\V2\TableroCamasController:nuevaAlerta');
+            $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
+            $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
+            $g->get('/aislamientosDisponibles/{idInternacion}', '\App\V2\TableroCamasController:obtenerAislamientosDisponibles');
+            $g->post('/agregarAislamiento', '\App\V2\TableroCamasController:agregarAislamiento');
+            $g->post('/finalizarAislamiento', '\App\V2\TableroCamasController:finalizarAislamiento');
+            $g->get('/validarFechaAltaDefinitiva', '\App\V2\TableroCamasController:validarFechaAltaDefinitiva');
+            // $g->post('/camasActualizarEstados','\App\V2\TableroCamasController:camasActualizarEstados');
+            $g->get('/horaServidor', '\App\V2\TableroCamasController:horaServidor');
+            $g->post('/altaDefinitiva','\App\V2\TableroCamasController:AltaDefinitiva');
+            $g->get('/motivosCambioCama', '\App\V2\TableroCamasController:verMotivosCambioCama');
+            $g->get('/buscarSolicitudCambioCama', '\App\V2\TableroCamasController:buscarSolicitudCambioCama');
+            $g->delete('/cambioCamaEliminarSolicitud', '\App\V2\TableroCamasController:cambioCamaEliminarSolicitud');
         });
     });
 };

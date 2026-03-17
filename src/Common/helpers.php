@@ -42,5 +42,64 @@ function verificarToken($token) {
     }
 }
 
+function fechaHoraServidorSQL(){
+    $sql = 'select dbo.fn_FechaHoraServidor() as fechaHora';
+    $stmt = getConeccionCAB()->query($sql);
+    $resultado = $stmt->fetchAll(PDO::FETCH_OBJ);
+    $db = null;
+    foreach($resultado as $fec){
+         $f = $fec->fechaHora;
+    }
+	return $f;
+}
 
+function crearTareaLimpieza($idCama, $dni, $nombreUsuario, $idServicio){
+    $sql = "EXEC TareaLimpieza_crear @idCama = :idCama, @solicitadaPorDni = :dni, @solicitadaPorNombre = :nombreUsuario, @idServicioSolicita = :idServicio";
+    $db = getConeccionCAB();
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
+    $stmt->bindParam(":dni", $dni, PDO::PARAM_STR);
+    $stmt->bindParam(":nombreUsuario", $nombreUsuario, PDO::PARAM_STR);
+    $stmt->bindParam(":idServicio", $idServicio, PDO::PARAM_INT);
+    $stmt->execute();
+    $db = null;
+    return true;
+}
 
+function limpiarAlertasHistoriasCama($idCama){
+    $sql = 'EXEC alertasMarcarNoVisible @idCama = :idCama';
+    $db = getConeccionCAB();
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
+    $stmt->execute();
+    $db = null;
+    return true;
+}
+
+function crearAlertaCamaDisponible($idCama){
+    $sql = 'declare @mensaje varchar(255)
+            EXEC alertasNueva @idCama = :idCama, @idAlerta = 13, @mensaje = @mensaje OUTPUT';
+    $db = getConeccionCAB();
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
+    $stmt->execute();
+    $db = null;
+    return true;
+}
+
+function bitacoraRegistrarCambioEstadoCama($idCama, $idEvento, $dni, $nombreUsuario){
+    $sql = 'EXEC BitacoraCama_registrar
+                    @idCama = :idCama,
+                    @idEvento = :idEvento,
+                    @dni = :dni,
+                    @nombreUsuario = :nombreUsuario';
+    $db = getConeccionCAB();
+    $stmt = $db->prepare($sql);
+    $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
+    $stmt->bindParam(":idEvento", $idEvento, PDO::PARAM_INT);
+    $stmt->bindParam(":dni", $dni, PDO::PARAM_STR);
+    $stmt->bindParam(":nombreUsuario", $nombreUsuario, PDO::PARAM_STR);
+    $stmt->execute();
+    $db = null;
+    return true;
+}
