@@ -60,6 +60,7 @@ return function (App $app) {
     $app->group('/empleados', function ($group) {
         $group->get('/{legajo}', '\App\EmpleadosController:verEmpleadoPorLegajo');
         $group->post('/crear', '\App\EmpleadosController:crearEmpleado');
+        $group->post('/editarEmpleado', '\App\EmpleadosController:editarEmpleado');
     });
 
 
@@ -126,6 +127,9 @@ return function (App $app) {
             $g->get('/motivosCambioCama', '\App\V2\TableroCamasController:verMotivosCambioCama');
             $g->get('/buscarSolicitudCambioCama', '\App\V2\TableroCamasController:buscarSolicitudCambioCama');
             $g->delete('/cambioCamaEliminarSolicitud', '\App\V2\TableroCamasController:cambioCamaEliminarSolicitud');
+            $g->post('/cambioCamaCrearSolicitud', '\App\V2\TableroCamasController:cambioCamaCrearSolicitud');
+            $g->get('/camasDisponibles', '\App\V2\TableroCamasController:camasDisponibles');
+            $g->post('/autorizarCambioCama', '\App\V2\TableroCamasController:autorizarCambioCama');
         });
     });
 };

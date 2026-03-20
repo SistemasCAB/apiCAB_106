@@ -254,7 +254,7 @@ class TableroCamasController
                         }else{
                             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
                         }  
-                    } catch(PDOException $e) {
+                    } catch(\PDOException $e) {
                         $datos = array(
                             'estado' => 0,
                             'mensaje' => $e->getMessage()
@@ -633,7 +633,7 @@ class TableroCamasController
                             $response->getBody()->write(json_encode($datos));
                             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
                         }                        
-                    } catch(PDOException $e) {
+                    } catch(\PDOException $e) {
                         $datos = array(
                             'estado' => 0,
                             'mensaje' => $e->getMessage()
@@ -706,7 +706,7 @@ class TableroCamasController
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
-                    } catch(PDOException $e) {
+                    } catch(\PDOException $e) {
                         $datos = array(
                             'estado' => 0,
                             'mensaje' => $e->getMessage()
@@ -775,7 +775,7 @@ class TableroCamasController
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
-                    } catch(PDOException $e) {
+                    } catch(\PDOException $e) {
                         $datos = array(
                             'estado' => 0,
                             'mensaje' => $e->getMessage()
@@ -944,7 +944,7 @@ class TableroCamasController
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
-                    }catch(PDOException $e) {
+                    }catch(\PDOException $e) {
                         $datos =  '{"error": '.$e->getMessage() .'}';
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(503);
@@ -2079,57 +2079,51 @@ class TableroCamasController
                             $s->paciCodigo           = (int)$solicitud->paciCodigo;
                             $s->tdocCodigo           = (int)$solicitud->tdocCodigo;
                             $s->nroDocumento         = $solicitud->nroDocumento;
-                            $s->fecha                 = date_format(date_create($solicitud->fecha), 'd-m-Y H:i:s');
-                            $s->idCamaOrigen        = (int)$solicitud->idCamaOrigen;
+                            $s->fecha                = date_format(date_create($solicitud->fecha), 'd-m-Y H:i:s');
+                            $s->idCamaOrigen         = (int)$solicitud->idCamaOrigen;
                             $s->camaOrigen           = $solicitud->camaOrigen;
-                            $s->idCamaDestino       = (int)$solicitud->idCamaDestino;
+                            $s->idCamaDestino        = (int)$solicitud->idCamaDestino;
                             $s->camaDestino          = $solicitud->camaDestino;
                             $s->idMotivo             = (int)$solicitud->idMotivo;
-                            $s->motivo                = $solicitud->motivo;
-                            $s->idEstadoSolicitud   = (int)$solicitud->idEstadoSolicitud;
-                            $s->estado                = $solicitud->estado;
-                            $s->solicitadoPorDni    = $solicitud->solicitadoPorDni;
-                            $s->solicitadoPorNombre = $solicitud->solicitadoPorNombre;
+                            $s->motivo               = $solicitud->motivo;
+                            $s->idEstadoSolicitud    = (int)$solicitud->idEstadoSolicitud;
+                            $s->estado               = $solicitud->estado;
+                            $s->solicitadoPorDni     = $solicitud->solicitadoPorDni;
+                            $s->solicitadoPorNombre  = $solicitud->solicitadoPorNombre;
                             
                             if(is_null($solicitud->autorizadoFecha)){
-                                $s->autorizadoFecha      = null;
-                            }else{
-                                $s->autorizadoFecha      = date_format(date_create($solicitud->autorizadoFecha), 'd-m-Y H:i:s');
+                                $s->autorizadoFecha = null;
+                            } else {
+                                $s->autorizadoFecha = date_format(date_create($solicitud->autorizadoFecha), 'd-m-Y H:i:s');
                             }
                             
                             $s->autorizadoPorDni    = $solicitud->autorizadoPorDni;
                             $s->autorizadoPorNombre = $solicitud->autorizadoPorNombre;
 
                             if(is_null($solicitud->realizadoFecha)){
-                                $s->realizadoFecha   = $solicitud->realizadoFecha;
-                            }else{
-                                $s->realizadoFecha   = date_format(date_create($solicitud->realizadoFecha), 'd-m-Y H:i:s');
+                                $s->realizadoFecha = $solicitud->realizadoFecha;
+                            } else {
+                                $s->realizadoFecha = date_format(date_create($solicitud->realizadoFecha), 'd-m-Y H:i:s');
                             }
                             
-                            
-                            $s->realizadoPorDni     = $solicitud->realizadoPorDni;
-                            $s->realizadoPorNombre  = $solicitud->realizadoPorNombre;
-                            if(is_null($solicitud->canceladoFecha)){
-                                $s->canceladoFecha   = $solicitud->canceladoFecha;
-                            }else{
-                                $s->canceladoFecha   = date_format(date_create($solicitud->canceladoFecha), 'd-m-Y H:i:s');
-                            }
-                            
-                            $s->canceladoPorDni     = $solicitud->canceladoPorDni;
-                            $s->canceladoPorNombre  = $solicitud->canceladoPorNombre;
+                            $s->realizadoPorDni    = $solicitud->realizadoPorDni;
+                            $s->realizadoPorNombre = $solicitud->realizadoPorNombre;
 
-                            if(isset($s)){
-                                array_push($datos,$s); //esto es igual a hacer esto $datos[] = $s;
-                                unset($s);
-                                
-                                $response->getBody()->write(json_encode($datos));
-                                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-                            }else{
-                                $datos = array('mensaje' => 'No hay una solicitud de cambio de cama para esta internación, que esté pendiente o autorizada.');
-                                $response->getBody()->write(json_encode($datos));
-                                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+                            if(is_null($solicitud->canceladoFecha)){
+                                $s->canceladoFecha = $solicitud->canceladoFecha;
+                            } else {
+                                $s->canceladoFecha = date_format(date_create($solicitud->canceladoFecha), 'd-m-Y H:i:s');
                             }
+                            
+                            $s->canceladoPorDni    = $solicitud->canceladoPorDni;
+                            $s->canceladoPorNombre = $solicitud->canceladoPorNombre;
+
+                            array_push($datos, $s);
+                            unset($s);
                         }
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
                     } catch(\PDOException $e) {
                         $datos = array(
                             'estado' => 0,
@@ -2221,6 +2215,239 @@ class TableroCamasController
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
                     }
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // CREAR SOLICITUD DE CAMBIO DE CAMA
+    public function cambioCamaCrearSolicitud(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idInternacion          = $datosSolicitud->idInternacion ?? null;
+        $paciCodigo             = $datosSolicitud->paciCodigo ?? null;
+        $tdocCodigo             = $datosSolicitud->tdocCodigo ?? null;
+        $nroDocumento           = $datosSolicitud->nroDocumento ?? null;
+        $idCamaOrigen           = $datosSolicitud->idCamaOrigen ?? null;
+        $idMotivo               = $datosSolicitud->idMotivo ?? null;        
+        $solicitadoPorDni       = $datosSolicitud->solicitadoPorDni ?? null;
+        $solicitadoPorNombre    = $datosSolicitud->solicitadoPorNombre ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idInternacion == ''){ $error ++; }
+        if($paciCodigo == ''){ $error ++; } 
+        if($nroDocumento == ''){ $error ++; }
+        if($idCamaOrigen == ''){ $error ++; }
+        if($idMotivo == ''){ $error ++; }
+        if($solicitadoPorDni == ''){ $error ++; }
+        if($solicitadoPorNombre == ''){ $error ++;}
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @mensaje varchar(255)
+                            EXEC @return_value = camasCambio_nuevaSolicitud
+                                        @idInternacion = :idInternacion,
+                                        @paciCodigo = :paciCodigo,
+                                        @tdocCodigo = :tdocCodigo,
+                                        @nroDocumento = :nroDocumento,
+                                        @idCamaOrigen = :idCamaOrigen,
+                                        @idMotivo = :idMotivo,
+                                        @solicitadoPorDni = :solicitadoPorDni,
+                                        @solicitadoPorNombre = :solicitadoPorNombre,
+                                        @mensaje = @mensaje OUTPUT
+                            
+                            SELECT	@return_value as estado, @mensaje as mensaje';
+
+                    try {
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idInternacion", $idInternacion);
+                        $stmt->bindParam("paciCodigo", $paciCodigo);
+                        $stmt->bindParam("tdocCodigo", $tdocCodigo);
+                        $stmt->bindParam("nroDocumento", $nroDocumento);
+                        $stmt->bindParam("idCamaOrigen", $idCamaOrigen);
+                        $stmt->bindParam("idMotivo", $idMotivo);
+                        $stmt->bindParam("solicitadoPorDni", $solicitadoPorDni);
+                        $stmt->bindParam("solicitadoPorNombre", $solicitadoPorNombre);
+                        
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+                        if($res[0]->estado > 0){
+                            $datos = array('id_solicitud' => (int)$res[0]->estado, 'mensaje' => $res[0]->mensaje);
+                            $response->getBody()->write(json_encode($datos));
+                            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                        }else{
+                            if($res[0]->estado == -1){
+                                $datos = array('id_solicitud' => 0, 'mensaje' => $res[0]->mensaje);
+                                $response->getBody()->write(json_encode($datos));
+                                return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+                            }
+                        }
+                        
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('id_solicitud' => 0, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // OBTENER CAMAS DISPONIBLES
+    public function camasDisponibles(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');    
+        $datos = array();          
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                $sql = 'EXEC camasDisponibles';
+                try {
+                    $db = getConeccionCAB(); 
+                    $stmt = $db->prepare($sql);
+                    $stmt->execute();
+                    $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                    $db = null;
+
+                    foreach($resultado as $cama){
+                        $c = new \stdClass();
+                        $c->idCama          = (int)$cama->idCama;
+                        $c->cama            = $cama->cama;
+                        $c->idHabitacion    = (int)$cama->idHabitacion;
+                        $c->tipoCama        = $cama->tipoCama;
+                        $c->piso            = $cama->piso;
+                                            
+                        array_push($datos, $c);
+                        unset($c);
+                    }
+
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                } catch(\PDOException $e) {
+                    $datos = array(
+                        'estado' => 0,
+                        'mensaje' => $e->getMessage()
+                    );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // AUTORIZAR DE CAMBIO DE CAMA
+    public function autorizarCambioCama(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idSolicitudCambio      = $datosSolicitud->idSolicitudCambio ?? null;
+        $idCamaDestino          = $datosSolicitud->idCamaDestino ?? null;
+        $autorizadoPorDni       = $datosSolicitud->autorizadoPorDni ?? null;
+        $autorizadoPorNombre    = $datosSolicitud->autorizadoPorNombre ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idSolicitudCambio == ''){ $error ++; }
+        if($idCamaDestino == ''){ $error ++; } 
+        if($autorizadoPorDni == ''){ $error ++; }
+        if($autorizadoPorNombre == ''){ $error ++;}
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @mensaje varchar(255)
+                            EXEC @return_value = cambioCama_autorizar
+                                        @idSolicitudCambio = :idSolicitudCambio,
+                                        @idCamaDestino = :idCamaDestino,
+                                        @autorizadoPorDni = :autorizadoPorDni,
+                                        @autorizadoPorNombre = :autorizadoPorNombre,
+                                        @mensaje = @mensaje OUTPUT
+                            
+                            SELECT	@return_value as estado, @mensaje as mensaje';
+
+                    try {
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idSolicitudCambio", $idSolicitudCambio);
+                        $stmt->bindParam("idCamaDestino", $idCamaDestino);
+                        $stmt->bindParam("autorizadoPorDni", $autorizadoPorDni);
+                        $stmt->bindParam("autorizadoPorNombre", $autorizadoPorNombre);
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+
+                        $httpStatus = match($res[0]->estado){
+                            0 => 500, // ocurrió un error al intentar autorizar el cambio de cama.
+                            1 => 200, // cambio de cama autorizado exitosamente.
+                            2 => 202, // cambio de cama aceptado, pero requiere que sea autorizado por Supervisión de Enfermería.
+                            default => 200
+                        };
+
+                        $datos = [
+                            'estado' => $httpStatus,
+                            'mensaje' => $res[0]->mensaje
+                        ];
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
 
                 }else{
                     $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');

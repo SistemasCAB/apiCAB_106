@@ -212,4 +212,99 @@ class EmpleadosController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
     }
+
+    // EDITAR EMPLEADO
+    public function editarEmpleado(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $emp            = json_decode($json); // array con los parámetros recibidos.
+
+        $error = 0;
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){
+                // token válido, continuar
+                
+                // id_usuario
+                if($emp->id_usuario == '' || $emp->id_usuario == null){
+                    $error ++;
+                }
+
+                // Legajo
+                if($emp->legajo == '' || $emp->legajo == null){
+                    $error ++;
+                }        
+
+                // cuenta AD
+                if($emp->cuenta == '' || $emp->cuenta == null){
+                    $error ++;
+                }
+                // Nombre
+                if($emp->nombre == '' || $emp->nombre == null){
+                    $error ++;
+                }
+                // Apellido
+                if($emp->apellido == '' || $emp->apellido == null){
+                    $error ++;
+                }
+
+
+                
+                if ($error == 0) {
+                    
+                    $sql = 'declare @mensaje varchar(255)
+                            declare @return_value int
+                            EXEC @return_value = usuarioEditar
+                                    @id_usuario = :id_usuario,
+                                    @legajo = :legajo,
+                                    @cuenta = :cuenta,
+                                    @apellido = :apellido,
+                                    @nombre = :nombre,
+                                    @mensaje = @mensaje OUTPUT
+                                
+                            select @mensaje as mensaje, @return_value as return_value';
+                    $db = getConnection();
+                    $stmt = $db->prepare($sql);
+                    $stmt->bindParam('id_usuario', $emp->id_usuario);
+                    $stmt->bindParam('legajo', $emp->legajo);
+                    $stmt->bindParam('cuenta', $emp->cuenta);
+                    $stmt->bindParam('apellido', $emp->apellido);
+                    $stmt->bindParam('nombre', $emp->nombre);
+                    $stmt->execute();
+                    $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                    $db = null;
+                    if($resultado[0]->return_value == 1){
+                        $datos = [
+                                'estado' => 200,
+                                'mensaje' => $resultado[0]->mensaje,
+                                'id_usuario' => (int)$emp->id_usuario,
+                                'legajo' => (int)$emp->legajo,
+                                'cuenta' => $emp->cuenta,
+                                'apellido' => $emp->apellido,
+                                'nombre' => $emp->nombre
+                            ];
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                    }else if($resultado[0]->return_value == 0){
+                        $datos = ['estado' => 409, 'mensaje' => $resultado[0]->mensaje];
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
+                    }                    
+                } else {
+                    $datos = ['estado' => 400, 'mensaje' => 'Los datos ingresados son incompletos o inválidos'];
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+                }
+
+            } else {
+                $datos = ['estado' => 403, 'mensaje' => 'Token inválido. Acceso no autorizado'];
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        } else {
+            $datos = ['estado' => 403, 'mensaje' => 'Acceso no autorizado'];
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
 }
