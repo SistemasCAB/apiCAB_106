@@ -912,7 +912,7 @@ class TableroCamasController
                             if($cama->idEstado == 6){
                                 $c->idReserva                 = (int)$cama->idReserva;
                                 $c->reservaFecha              = ($cama->fechaReserva <> '') ? date_format(date_create($cama->fechaReserva), 'd-m-Y H:i:s') : '';
-                                $c->reservaMotivo             = $cama->reservaMmotivo;
+                                $c->reservaMotivo             = $cama->reservaMotivo;
                                 $c->reservadaPorDni           = (int)$cama->reservadaPorDni;
                                 $c->reservadaPorNombre        = $cama->reservadaPorNombre;
                                 $c->reservaFechaCancelada     = ($cama->reservaFechaCancelada <> '') ? date_format(date_create($cama->reservaFechaCancelada), 'd-m-Y H:i:s') : '';
@@ -1071,6 +1071,19 @@ class TableroCamasController
 
                         $c->tareasBloqueanHabitacion = (int)$cama->tareasBloqueanHabitacion;
                         $c->tareasBloqueanCama = (int)$cama->tareasBloqueanCama;
+
+                        $c->limpia = (int)$cama->limpia;
+
+                        $c->requiereAutorizacionEnfermeria = (int)$cama->requiereAutorizacionEnfermeria;
+                        $c->autEnfermeriaEstado = $cama->autEnfermeriaEstado;
+                        $c->autEnfermeriaFecha = ($cama->autEnfermeriaFecha <> '') ? date_format(date_create($cama->autEnfermeriaFecha), 'd-m-Y H:i:s') : '';
+                        // if(is_null($solicitud->autEnfermeriaFecha)){
+                        //         $s->autEnfermeriaFecha = null;
+                        //     }else{
+                        //         $s->autEnfermeriaFecha = date_format(date_create($solicitud->autEnfermeriaFecha), 'd-m-Y H:i:s'); 
+                        //     }
+                        $c->autEnfermeriaPorDni = $cama->autEnfermeriaPorDni;
+                        $c->autEnfermeriaPorNombre = $cama->autEnfermeriaPorNombre;
                         
                         array_push($datos,$c);
                         unset($c);
@@ -2118,6 +2131,17 @@ class TableroCamasController
                             $s->canceladoPorDni    = $solicitud->canceladoPorDni;
                             $s->canceladoPorNombre = $solicitud->canceladoPorNombre;
 
+                            $s->requiereAutorizacionEnfermeria = $solicitud->requiereAutorizacionEnfermeria;
+                            $s->autEnfermeriaEstado = $solicitud->autEnfermeriaEstado;
+                            $s->autEnfermeriaEstadoTexto = $solicitud->autEnfermeriaEstadoTexto;
+                            if(is_null($solicitud->autEnfermeriaFecha)){
+                                $s->autEnfermeriaFecha = null;
+                            }else{
+                                $s->autEnfermeriaFecha = date_format(date_create($solicitud->autEnfermeriaFecha), 'd-m-Y H:i:s'); 
+                            }
+                            $s->autEnfermeriaPorDni = $solicitud->autEnfermeriaPorDni;
+                            $s->autEnfermeriaPorNombre = $solicitud->autEnfermeriaPorNombre;
+
                             array_push($datos, $s);
                             unset($s);
                         }
@@ -2439,6 +2463,85 @@ class TableroCamasController
                             'estado' => $httpStatus,
                             'mensaje' => $res[0]->mensaje
                         ];
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // NO AUTORIZAR DE CAMBIO DE CAMA
+    public function noAutorizarCambioCama(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idSolicitudCambio      = $datosSolicitud->idSolicitudCambio ?? null;
+        $autorizadoPorDni       = $datosSolicitud->autorizadoPorDni ?? null;
+        $autorizadoPorNombre    = $datosSolicitud->autorizadoPorNombre ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idSolicitudCambio == ''){ $error ++; }
+        if($autorizadoPorDni == ''){ $error ++; }
+        if($autorizadoPorNombre == ''){ $error ++;}
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @mensaje varchar(255)
+                            EXEC @return_value = cambioCama_NoAutorizar
+                                        @idSolicitudCambio = :idSolicitudCambio,
+                                        @autorizadoPorDni = :autorizadoPorDni,
+                                        @autorizadoPorNombre = :autorizadoPorNombre,
+                                        @mensaje = @mensaje OUTPUT
+                            
+                            SELECT	@return_value as estado, @mensaje as mensaje';
+
+                    try {
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idSolicitudCambio", $idSolicitudCambio);
+                        $stmt->bindParam("autorizadoPorDni", $autorizadoPorDni);
+                        $stmt->bindParam("autorizadoPorNombre", $autorizadoPorNombre);
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+
+                        $datos = [
+                            'estado' => 1,
+                            'mensaje' => $res[0]->mensaje
+                        ];
+
+                        if ($res[0]->estado == 1){
+                            $httpStatus = 200; // cambio de cama no autorizado exitosamente.    
+                        }else{
+                            $httpStatus = 500; // ocurrió un error al intentar no autorizar el cambio de cama.
+                        }
 
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);

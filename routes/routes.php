@@ -130,6 +130,7 @@ return function (App $app) {
             $g->post('/cambioCamaCrearSolicitud', '\App\V2\TableroCamasController:cambioCamaCrearSolicitud');
             $g->get('/camasDisponibles', '\App\V2\TableroCamasController:camasDisponibles');
             $g->post('/autorizarCambioCama', '\App\V2\TableroCamasController:autorizarCambioCama');
+            $g->post('/noAutorizarCambioCama', '\App\V2\TableroCamasController:noAutorizarCambioCama');
         });
     });
 };
