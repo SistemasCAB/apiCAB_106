@@ -2578,4 +2578,122 @@ class TableroCamasController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
     }
+
+    // CAMBIOS DE CAMAS PENDIENTES - VER
+    public function camasCambiosPendientes(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');    
+        $datos = array();          
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                $sql = 'EXEC camasCambiosPendientes_ver';
+                try {
+                    $db = getConeccionCAB(); 
+                    $stmt = $db->prepare($sql);
+                    $stmt->execute();
+                    $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                    $db = null;
+
+                    foreach($resultado as $cc){
+                        $c = new \stdClass();
+                        $c->idCamaCambiosPendientes = (int)$cc->idCamaCambiosPendientes;
+                        $c->idSolicitudCambio       = (int)$cc->idSolicitudCambio;
+                        $c->idCamaDestino           = (int)$cc->idCamaDestino;
+                        $c->camaDestino             = $cc->camaDestino;
+                        $c->paciCodigo              = (int)$cc->paciCodigo;
+                        $c->paciente                = $cc->paciente;
+                        $c->tdocCodigo              = (int)$cc->tdocCodigo;
+                        $c->nroDocumento            = $cc->nroDocumento;
+                        $c->sexo                    = $cc->sexo;
+                        $c->idInternacion           = (int)$cc->idInternacion;
+                        $c->idCamaOrigen            = (int)$cc->idCamaOrigen;
+                        $c->camaOrigen              = $cc->camaOrigen;
+                        $c->aislamientos            = json_decode($cc->aislamientos);
+
+                        array_push($datos, $c);
+                        unset($c);
+                    }
+
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                } catch(\PDOException $e) {
+                    $datos = array(
+                        'estado' => 0,
+                        'mensaje' => $e->getMessage()
+                    );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // VER PACIENTE QUE ESTÁN EN UNA HABITACIÓN
+    public function pacientesHabitacion(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $idHabitacion = $request->getQueryParams()['idHabitacion'] ?? null;
+        $datos = array();          
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                $sql = 'EXEC pacientesHabitacion_ver @idHabitacion = :idHabitacion';
+                try {
+                    $db = getConeccionCAB(); 
+                    $stmt = $db->prepare($sql);
+                    $stmt->bindParam("idHabitacion", $idHabitacion);
+                    $stmt->execute();
+                    $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                    $db = null;
+
+                    foreach($resultado as $pac){
+                        $p = new \stdClass();
+                        $p->idCama  = (int)$pac->idCama;
+                        $p->cama    = $pac->cama;
+                        $p->paciCodigo    = (int)$pac->paciCodigo;
+                        $p->paciente      = $pac->paciente;
+                        $p->tdocCodigo    = (int)$pac->tdocCodigo;
+                        $p->nroDocumento  = $pac->nroDocumento;
+                        $p->sexo          = $pac->sexo;
+                        $p->idInternacion = (int)$pac->idInternacion;
+                        $p->aislamientos  = json_decode($pac->aislamientos);
+
+                        array_push($datos, $p);
+                        unset($c);
+                    }
+
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                } catch(\PDOException $e) {
+                    $datos = array(
+                        'estado' => 0,
+                        'mensaje' => $e->getMessage()
+                    );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
 }

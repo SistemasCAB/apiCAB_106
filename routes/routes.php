@@ -131,6 +131,8 @@ return function (App $app) {
             $g->get('/camasDisponibles', '\App\V2\TableroCamasController:camasDisponibles');
             $g->post('/autorizarCambioCama', '\App\V2\TableroCamasController:autorizarCambioCama');
             $g->post('/noAutorizarCambioCama', '\App\V2\TableroCamasController:noAutorizarCambioCama');
+            $g->get('/camasCambiosPendientes','\App\V2\TableroCamasController:camasCambiosPendientes');
+            $g->get('/pacientesHabitacion','\App\V2\TableroCamasController:pacientesHabitacion');
         });
     });
 };
