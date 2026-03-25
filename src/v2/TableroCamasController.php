@@ -2359,15 +2359,17 @@ class TableroCamasController
     // OBTENER CAMAS DISPONIBLES
     public function camasDisponibles(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');    
+        $paciCodigo     = $request->getQueryParams()['paciCodigo'] ?? null; // código del paciente que voy a ingresar en la cama disponible.
         $datos = array();          
 
         if(isset($tokenAcceso[0])){
             if(verificarToken($tokenAcceso[0]) === true){                
                 // acceso permitido
-                $sql = 'EXEC camasDisponibles';
+                $sql = 'EXEC camasDisponibles @paciCodigo = :paciCodigo';
                 try {
                     $db = getConeccionCAB(); 
                     $stmt = $db->prepare($sql);
+                    $stmt->bindParam("paciCodigo", $paciCodigo);
                     $stmt->execute();
                     $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
                     $db = null;
@@ -2379,6 +2381,12 @@ class TableroCamasController
                         $c->idHabitacion    = (int)$cama->idHabitacion;
                         $c->tipoCama        = $cama->tipoCama;
                         $c->piso            = $cama->piso;
+                        $c->aislamiento     = (int)$cama->aislamiento;
+                        if($cama->aislamiento == 1){
+                            $c->advertencia = 'AISLAMIENTO - Requiere autorizacion de Sup. de Enfermería';
+                        }else{
+                            $c->advertencia = '';
+                        }
                                             
                         array_push($datos, $c);
                         unset($c);
@@ -2452,11 +2460,11 @@ class TableroCamasController
                         $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
                         $db = null;
 
-                        $httpStatus = match($res[0]->estado){
-                            0 => 500, // ocurrió un error al intentar autorizar el cambio de cama.
-                            1 => 200, // cambio de cama autorizado exitosamente.
-                            2 => 202, // cambio de cama aceptado, pero requiere que sea autorizado por Supervisión de Enfermería.
-                            default => 200
+                        $httpStatus = match((string)$res[0]->estado){  // Convierte a string para consistencia
+                            '0' => 500, // ocurrió un error al intentar autorizar el cambio de cama.
+                            '1' => 200, // cambio de cama autorizado exitosamente.
+                            '2' => 202, // cambio de cama aceptado, pero requiere que sea autorizado por Supervisión de Enfermería.
+                            default => 400  // Valor inesperado; ajusta según lógica (ej. bad request)
                         };
 
                         $datos = [
