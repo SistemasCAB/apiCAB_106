@@ -2601,9 +2601,11 @@ class TableroCamasController
                         $c->idSolicitudCambio       = (int)$cc->idSolicitudCambio;
                         $c->idCamaDestino           = (int)$cc->idCamaDestino;
                         $c->camaDestino             = $cc->camaDestino;
+                        $c->idHabitacion            = (int)$cc->idHabitacion;
                         $c->paciCodigo              = (int)$cc->paciCodigo;
                         $c->paciente                = $cc->paciente;
                         $c->tdocCodigo              = (int)$cc->tdocCodigo;
+                        $c->tipoDocumento           =$cc->tipoDocumento;
                         $c->nroDocumento            = $cc->nroDocumento;
                         $c->sexo                    = $cc->sexo;
                         $c->idInternacion           = (int)$cc->idInternacion;
