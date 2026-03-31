@@ -878,9 +878,11 @@ class TableroCamasController
                             $c->plan                          = $cama->plan;
                             $c->nroAfiliado                   = $cama->nroAfiliado;
                             $c->idInternacion                 = (int)$cama->idInternacion;
-                            $c->fechaAltaMedica               = ($cama->fechaAltaMedica <> '') ? date_format(date_create($cama->fechaAltaMedica), 'd-m-Y H:i:s') : '';
+                            
+                            $c->fechaAltaMedica               = ($cama->fechaAltaMedica <> '') ? date_format(date_create($cama->fechaAltaMedica), 'd-m-Y H:i:s') : '';                            
                             $c->profesionalAlta               = $cama->profesionalAlta;
                             $c->tipoAltaMedica                = $cama->tipoAltaMedica;
+                            
                             $c->fotoPaciente                  = $cama->fotoPaciente;
 
                             
