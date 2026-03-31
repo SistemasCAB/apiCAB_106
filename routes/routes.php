@@ -133,6 +133,11 @@ return function (App $app) {
             $g->post('/noAutorizarCambioCama', '\App\V2\TableroCamasController:noAutorizarCambioCama');
             $g->get('/camasCambiosPendientes','\App\V2\TableroCamasController:camasCambiosPendientes');
             $g->get('/pacientesHabitacion','\App\V2\TableroCamasController:pacientesHabitacion');
+            $g->post('/camasCambiosPendientesAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesAutorizar');
+            $g->post('/camasCambiosPendientesNoAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesNoAutorizar');
+            $g->get('/tiposAltasMedicas','\App\V2\TableroCamasController:tiposAltasMedicas');
+            $g->post('/altaProbable','\App\V2\TableroCamasController:altaProbableCrear');
+            $g->get('/reservas','\App\V2\TableroCamasController:reservasVerUna');
         });
     });
 };
