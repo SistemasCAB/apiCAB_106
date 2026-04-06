@@ -3076,7 +3076,7 @@ class TableroCamasController
     }
 
     // CAMAS CAMBIOS - REGISTRAR
-    public function camasCambiosRegistrar(Request $request, Response $response, $args){
+    public function camasCambiosRegistrar_v1(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');
         $json           = $request->getBody();
         $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
@@ -3140,6 +3140,199 @@ class TableroCamasController
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
                     }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    public function camasCambiosRegistrar(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idSolicitudCambio  = $datosSolicitud->idSolicitudCambio ?? null;
+        $realizadoPorDni    = $datosSolicitud->realizadoPorDni ?? null;
+        $realizadoPorNombre = $datosSolicitud->realizadoPorNombre ?? null;
+        $idServicio         = $datosSolicitud->idServicio ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idSolicitudCambio == ''){ $error ++; }
+        if($realizadoPorDni == ''){ $error ++; }
+        if($realizadoPorNombre == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+
+        
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido                
+
+                if ($error == 0) {
+
+                    try {
+                        $db = getConeccionCAB();
+                        
+                        // Inicia la transacción
+                        $db->beginTransaction();
+                        
+                        $sql = 'DECLARE @return_value int, @men varchar(255), @nuevoEstado int
+                                EXEC @return_value = camasCambios_registrarCambio
+                                            @idSolicitudCambio = :idSolicitudCambio,
+                                            @realizadoPorDni = :realizadoPorDni,
+                                            @realizadoPorNombre = :realizadoPorNombre,
+                                            @idServicio = :idServicio,
+                                            @mensaje = @men OUTPUT,
+                                            @nuevoEstadoCamaOrigen = @nuevoEstado OUTPUT;
+                                
+                                SELECT @return_value as estado, @men as mensaje, @nuevoEstado as nuevoEstado';
+                        
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam(":idSolicitudCambio", $idSolicitudCambio);
+                        $stmt->bindParam(":realizadoPorDni", $realizadoPorDni);
+                        $stmt->bindParam(":realizadoPorNombre", $realizadoPorNombre);
+                        $stmt->bindParam(":idServicio", $idServicio);
+                        $stmt->execute();
+                        
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        
+                        // Validar que el procedimiento retornó resultados
+                        if (empty($res)) {
+                            throw new \Exception('El procedimiento no retornó resultados');
+                        }
+                        
+                        $estado = (int)$res[0]->estado;
+                        $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+                        $nuevoEstado = (int)$res[0]->nuevoEstado; // nuevo estado a asignar a la cama de origen luego de ser desocupada. Puede ser limpieza o reparación.
+                        
+                        // Si el procedimiento devolvió error (estado = 0)
+                        if ($estado === 0) {
+                            // Revierte la transacción
+                            $db->rollBack();
+                            
+                            $datos = array(
+                                    'estado' => 0, 
+                                    'mensaje' => $mensaje
+                                );
+                            $response->getBody()->write(json_encode($datos));
+                            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                            $db = null;
+                        }
+                        
+                        // Si el procedimiento fue exitoso (estado = 1)
+                        
+                        // PASO 2: Llama a la API de Markey para disponibilizar la cama destino (cambiarEstado)
+                        
+                        // para esto necesito algunos datos de la solicitud de cambio que debo obtener de la BD
+                        // necesito: idCamarOrigen, idCamaDestino, idInternacion, paciCodigo,
+
+                        $sql2 = 'select * from camasCambios where idSolicitudCambio = :idSolicitudCambio';
+                        
+                        $stmt2 = $db->prepare($sql2);
+                        $stmt2->bindParam(":idSolicitudCambio", $idSolicitudCambio);
+                        $stmt2->execute();
+                        $res2 = $stmt2->fetchAll(\PDO::FETCH_OBJ);
+                        
+                        $idCamaOrigen   = (int)$res2[0]->idCamaOrigen;
+                        $idCamaDestino  = (int)$res2[0]->idCamaDestino;
+                        $idInternacion  = (int)$res2[0]->idInternacion;
+                        $paciCodigo     = (int)$res2[0]->paciCodigo;
+                        
+                        //error_log("idCamaOrigen: " . $idCamaOrigen. '- idCamaDestino: '. $idCamaDestino. ' idInternacion: ' . $idInternacion . ' paciCodigo: '. $paciCodigo);
+
+                        require_once '../class/Markey.php';
+                        $Markey = new \Markey;
+                        $resultadoCambiarEstado = $Markey->cambiarEstado($idCamaDestino, 1);
+
+                        if($resultadoCambiarEstado == 0){
+                            // ocurrió algún error.
+                            $db->rollBack();
+                                
+                            $datos = array(
+                                'estado' => 0, 
+                                'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
+                            );
+                            $response->getBody()->write(json_encode($datos));
+                            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                            $db = null;
+                        }
+
+                        // PASO 3 - Realizo el cambio de cama en Markey
+                        $resultadoCambiarPaciente = $Markey->cambiarCama($idCamaOrigen, $idCamaDestino, $idInternacion, $paciCodigo, $realizadoPorDni);
+                        if($resultadoCambiarPaciente == 0){
+                            // ocurrió algún error.
+                            $db->rollBack();
+                                
+                            $datos = array(
+                                'estado' => 0, 
+                                'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
+                            );
+                            $response->getBody()->write(json_encode($datos));
+                            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                            $db = null;
+                        }
+
+                        
+                        // PASO 4 - Cambio el estado de la cama origen.                       
+                        
+                        $resultadoCambiarEstado2 = $Markey->cambiarEstado($idCamaOrigen, $nuevoEstado);
+
+                        error_log("idEstado cama origen: " . $nuevoEstado. '- resultadoCambiarEstado2: '. $resultadoCambiarEstado2);
+
+                        if($resultadoCambiarEstado2 == 0){
+                            // ocurrió algún error.
+                            $db->rollBack();
+                                
+                            $datos = array(
+                                'estado' => 0, 
+                                'mensaje' => 'Error al cambiar el estado de la cama origen en Markey. Endpoit: cambiarEstado'
+                            );
+                            $response->getBody()->write(json_encode($datos));
+                            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                            $db = null;
+                        }
+                        
+                        
+                        // Si todo está bien, confirma la transacción
+                        $db->commit();
+                        
+                        $datos = array(
+                                'estado' => 1, 
+                                'mensaje' => 'El cambio de cama fue registrado correctamente.'
+                            );
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                        $db = null;
+                        
+                    } catch (\Exception $e) {
+                        // Cualquier otro error
+                        if ($db && $db->inTransaction()) {
+                            $db->rollBack();
+                        }
+                        
+                        $datos = array(
+                                'estado' => 0, 
+                                'mensaje' => 'Error: ' . $e->getMessage()
+                            );
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                        $db = null;                        
+                    }
 
                 }else{
                     $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');

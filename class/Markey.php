@@ -102,6 +102,8 @@ class Markey{
         $conexion = curl_init();
         $observaciones = '';
         
+        $observaciones = '';
+
         if($idEstado == 3){
             $observaciones = 'REPARACIÓN';
         }
@@ -110,11 +112,13 @@ class Markey{
             $observaciones = 'LIMPIEZA';
         }
 
-        if($idEstado == 1){
-            $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/camas/cambiarEstado?APIKey=d5e75bde-205b-4468-86ec-67e7160bad2e&id_cama='.$idCama.'&id_estado='.$idEstado;
-        }else{
-            $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/camas/cambiarEstado?APIKey=d5e75bde-205b-4468-86ec-67e7160bad2e&id_cama='.$idCama.'&id_estado='.$idEstado.'&observaciones='.rawurlencode($observaciones);
-        }
+        // if($idEstado == 1){
+        //     $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/camas/cambiarEstado?APIKey=d5e75bde-205b-4468-86ec-67e7160bad2e&id_cama='.$idCama.'&id_estado='.$idEstado;
+        // }else{
+        //     $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/camas/cambiarEstado?APIKey=d5e75bde-205b-4468-86ec-67e7160bad2e&id_cama='.$idCama.'&id_estado='.$idEstado.'&observaciones='.rawurlencode($observaciones);
+        // }
+
+        $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/camas/cambiarEstado?APIKey=d5e75bde-205b-4468-86ec-67e7160bad2e&id_cama='.$idCama.'&id_estado='.$idEstado.'&observaciones='.rawurlencode($observaciones);
         
         $headers = array(
             'Content-Type: application/json',
@@ -217,6 +221,61 @@ class Markey{
         }else{
             $resultado = 0;
         }
+
+        return $resultado;
+    }
+
+    public function cambiarCama($idCamaOrigen, $idCamaDestino, $idInternacion, $paciCodigo, $realizadoPorDni){
+        //cambia  el estado de una cama en Markey. Si la operación es exitosa (status code 200), devuelve 1, sino 0
+        $conexion = curl_init();
+        $APIKey = 'd5e75bde-205b-4468-86ec-67e7160bad2e';
+        
+        $urlServicio = 'https://clinicaadventista.markey.com.ar/APIMarkeyCAB/api/cambiarCama?APIKey='.$APIKey.'&id_camaorigen='.$idCamaOrigen.'&id_camadestino='.$idCamaDestino.'&id_internacion='.$idInternacion.'&Id_Paciente='.$paciCodigo.'&usuario='.$realizadoPorDni;
+        
+        
+        $headers = array(
+            'Content-Type: application/json',
+            'User-Agent: PHP-CURL'
+        );
+
+        curl_setopt_array($conexion, array(
+        CURLOPT_URL => $urlServicio,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_HTTPHEADER => array_merge($headers, ['Content-Length: 0']),
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => '',
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
+        ));
+
+        $respuesta = curl_exec($conexion);
+        $status = curl_getinfo($conexion, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($conexion);
+        
+        
+        
+        if($respuesta === FALSE){
+            error_log('Curl failed in cambiarCama: '. $curlError);
+            //curl_close($conexion);
+            return 0;
+        }
+
+        // curl_close($conexion);
+
+        if($status == 200){
+            $resultado = 1;
+        }else{
+            $resultado = 0;
+        }
+
+        // Debug: loguear URL, status code y respuesta
+        error_log("cambiarCama - URL: $urlServicio | Status: $status | Respuesta: $respuesta | cURL Error: $curlError  | resultado: $resultado");
 
         return $resultado;
     }
