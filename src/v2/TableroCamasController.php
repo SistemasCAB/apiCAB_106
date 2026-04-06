@@ -1063,6 +1063,7 @@ class TableroCamasController
                         $c->altaProbableIdTipoAlta          = (int)($cama->altaProbableIdTipoAlta <> '') ? $cama->altaProbableIdTipoAlta : null;
                         $c->altaProbableTipoAltaProbable    = ($cama->altaProbableTipoAltaProbable <> '') ? $cama->altaProbableTipoAltaProbable : '';
                         $c->altaProbableDniUsuario          = (int)($cama->altaProbableDniUsuario <> '') ? $cama->altaProbableDniUsuario : null;
+                        $c->altaProbableNombreUsuario       = ($cama->altaProbableNombreUsuario <> '') ? $cama->altaProbableNombreUsuario : '';
                         $c->soloAltaMedica                  = (int)$cama->soloAltaMedica;
 
                         // json con los aislamientos del paciente.
@@ -3059,6 +3060,91 @@ class TableroCamasController
                     );
                     $response->getBody()->write(json_encode($datos));
                     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // CAMAS CAMBIOS - REGISTRAR
+    public function camasCambiosRegistrar(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idSolicitudCambio  = $datosSolicitud->idSolicitudCambio ?? null;
+        $realizadoPorDni    = $datosSolicitud->realizadoPorDni ?? null;
+        $realizadoPorNombre = $datosSolicitud->realizadoPorNombre ?? null;
+        $idServicio         = $datosSolicitud->idServicio ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idSolicitudCambio == ''){ $error ++; }
+        if($realizadoPorDni == ''){ $error ++; }
+        if($realizadoPorNombre == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+
+        
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido                
+
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @men varchar(255)
+                            EXEC @return_value = camasCambios_registrarCambio
+                                        @idSolicitudCambio = :idSolicitudCambio,
+                                        @realizadoPorDni = :realizadoPorDni,
+                                        @realizadoPorNombre = :realizadoPorNombre,
+                                        @idServicio = :idServicio,
+                                        @mensaje = @men OUTPUT
+                            
+                            SELECT	@return_value as estado, @men as mensaje';
+
+                    try {                        
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idSolicitudCambio", $idSolicitudCambio);
+                        $stmt->bindParam("realizadoPorDni", $realizadoPorDni);
+                        $stmt->bindParam("realizadoPorNombre", $realizadoPorNombre);
+                        $stmt->bindParam("idServicio", $idServicio);
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+
+                        $datos = [
+                            'estado' => (int)$res[0]->estado,
+                            'mensaje' => $res[0]->mensaje
+                        ];
+
+                        if ($res[0]->estado == 1){
+                            $httpStatus = 200; 
+                        }else{
+                            $httpStatus = 500; 
+                        }
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
                 }
             }else{
                 // acceso denegado

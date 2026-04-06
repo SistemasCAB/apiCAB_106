@@ -105,39 +105,57 @@ return function (App $app) {
 
         // TABLERO DE CAMAS
         $group->group('/tablerocamas', function ($g) {
+            // VER CAMAS
             $g->get('/actualizarCamasMarkey', '\App\V2\TableroCamasController:actualizarCamasMarkey');
             $g->get('/actualizarCamasMarkeyPrueba', '\App\V2\TableroCamasController:actualizarCamasMarkeyPrueba');
+            $g->get('/camas', '\App\V2\TableroCamasController:obtenerCamas');
+            $g->get('/verUnaCama', '\App\V2\TableroCamasController:verUnaCama');
+
+            // APLICACION
             $g->get('/version', '\App\V2\TableroCamasController:versionAutorizada');
+            $g->get('/horaServidor', '\App\V2\TableroCamasController:horaServidor');
+
+            // SERVICIOS
             $g->get('/servicios', '\App\V2\TableroCamasController:serviciosVerTodos');
             $g->get('/serviciosVerUno', '\App\V2\TableroCamasController:serviciosVerUno');
             $g->get('/permisoModuloTablero_ver', '\App\V2\TableroCamasController:permisoModuloTablero_ver');
             $g->get('/permisosModulosTableroServicio', '\App\V2\TableroCamasController:permisosModulosTableroServicio');
-            $g->get('/camas', '\App\V2\TableroCamasController:obtenerCamas');
-            $g->get('/verUnaCama', '\App\V2\TableroCamasController:verUnaCama');
-            $g->post('/nuevaAlerta', '\App\V2\TableroCamasController:nuevaAlerta');
-            $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
-            $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
-            $g->get('/aislamientosDisponibles/{idInternacion}', '\App\V2\TableroCamasController:obtenerAislamientosDisponibles');
-            $g->post('/agregarAislamiento', '\App\V2\TableroCamasController:agregarAislamiento');
-            $g->post('/finalizarAislamiento', '\App\V2\TableroCamasController:finalizarAislamiento');
-            $g->get('/validarFechaAltaDefinitiva', '\App\V2\TableroCamasController:validarFechaAltaDefinitiva');
-            // $g->post('/camasActualizarEstados','\App\V2\TableroCamasController:camasActualizarEstados');
-            $g->get('/horaServidor', '\App\V2\TableroCamasController:horaServidor');
-            $g->post('/altaDefinitiva','\App\V2\TableroCamasController:AltaDefinitiva');
-            $g->get('/motivosCambioCama', '\App\V2\TableroCamasController:verMotivosCambioCama');
-            $g->get('/buscarSolicitudCambioCama', '\App\V2\TableroCamasController:buscarSolicitudCambioCama');
+
+            // CAMBIOS DE CAMAS
             $g->delete('/cambioCamaEliminarSolicitud', '\App\V2\TableroCamasController:cambioCamaEliminarSolicitud');
             $g->post('/cambioCamaCrearSolicitud', '\App\V2\TableroCamasController:cambioCamaCrearSolicitud');
             $g->get('/camasDisponibles', '\App\V2\TableroCamasController:camasDisponibles');
             $g->post('/autorizarCambioCama', '\App\V2\TableroCamasController:autorizarCambioCama');
             $g->post('/noAutorizarCambioCama', '\App\V2\TableroCamasController:noAutorizarCambioCama');
+            $g->post('/camasCambiosRegistrar','\App\V2\TableroCamasController:camasCambiosRegistrar');
             $g->get('/camasCambiosPendientes','\App\V2\TableroCamasController:camasCambiosPendientes');
+            $g->get('/motivosCambioCama', '\App\V2\TableroCamasController:verMotivosCambioCama');
+            $g->get('/buscarSolicitudCambioCama', '\App\V2\TableroCamasController:buscarSolicitudCambioCama');
             $g->get('/pacientesHabitacion','\App\V2\TableroCamasController:pacientesHabitacion');
             $g->post('/camasCambiosPendientesAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesAutorizar');
             $g->post('/camasCambiosPendientesNoAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesNoAutorizar');
+            
+            
+            // ALERTAS           
+            $g->post('/nuevaAlerta', '\App\V2\TableroCamasController:nuevaAlerta');
+            $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
+            $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
+            
+            // AISLAMIENTOS
+            $g->get('/aislamientosDisponibles/{idInternacion}', '\App\V2\TableroCamasController:obtenerAislamientosDisponibles');
+            $g->post('/agregarAislamiento', '\App\V2\TableroCamasController:agregarAislamiento');
+            $g->post('/finalizarAislamiento', '\App\V2\TableroCamasController:finalizarAislamiento');
+            
+            // ALTAS
+            $g->get('/validarFechaAltaDefinitiva', '\App\V2\TableroCamasController:validarFechaAltaDefinitiva');           
+            $g->post('/altaDefinitiva','\App\V2\TableroCamasController:AltaDefinitiva');
             $g->get('/tiposAltasMedicas','\App\V2\TableroCamasController:tiposAltasMedicas');
             $g->post('/altaProbable','\App\V2\TableroCamasController:altaProbableCrear');
+
+            // RESERVAS
             $g->get('/reservas','\App\V2\TableroCamasController:reservasVerUna');
+
+            // $g->post('/camasActualizarEstados','\App\V2\TableroCamasController:camasActualizarEstados');
         });
     });
 };
