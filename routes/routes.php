@@ -134,6 +134,8 @@ return function (App $app) {
             $g->get('/pacientesHabitacion','\App\V2\TableroCamasController:pacientesHabitacion');
             $g->post('/camasCambiosPendientesAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesAutorizar');
             $g->post('/camasCambiosPendientesNoAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesNoAutorizar');
+            $g->get('/camasDisponiblesAreaCerrada', '\App\V2\TableroCamasController:camasDisponiblesAreaCerrada');
+            $g->post('/cambioCamaCrearSolicitudAreaCerrada', '\App\V2\TableroCamasController:cambioCamaCrearSolicitudAreaCerrada');
             
             
             // ALERTAS           
