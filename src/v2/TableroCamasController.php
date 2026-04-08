@@ -3357,17 +3357,19 @@ class TableroCamasController
     public function camasDisponiblesAreaCerrada(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');      
         $idServicio     = $request->getQueryParams()['idServicio'] ?? null;  
+        $soloAltaMedica = $request->getQueryParams()['soloAltaMedica'] ?? null;  
 
         $datos = array();
 
         if(isset($tokenAcceso[0])){
             if(verificarToken($tokenAcceso[0]) === true){                
                 // acceso permitido
-                $sql = 'EXEC camasDisponibleAreaCerrada @idServicio = :idServicio';
+                $sql = 'EXEC camasDisponibleAreaCerrada @idServicio = :idServicio, @soloAltaMedica = :soloAltaMedica';
                 try {
                     $db = getConeccionCAB(); 
                     $stmt = $db->prepare($sql);
                     $stmt->bindParam(':idServicio', $idServicio);
+                    $stmt->bindParam(':soloAltaMedica', $soloAltaMedica);
                     $stmt->execute();
                     $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
                     $db = null;
@@ -3484,6 +3486,90 @@ class TableroCamasController
                         
                     } catch(\PDOException $e) {
                         $datos = array('id_solicitud' => 0, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
+    // AUTORIZAR DE CAMBIO DE CAMA
+    public function ordenarCambioCama(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosSolicitud = json_decode($json); // array con los parámetros recibidos.
+   
+        $idCamaOrigen           = $datosSolicitud->idCamaOrigen ?? null;
+        $idCamaDestino          = $datosSolicitud->idCamaDestino ?? null;
+        $autorizadoPorDni       = $datosSolicitud->autorizadoPorDni ?? null;
+        $autorizadoPorNombre    = $datosSolicitud->autorizadoPorNombre ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idCamaOrigen == ''){ $error ++; }
+        if($idCamaDestino == ''){ $error ++; } 
+        if($autorizadoPorDni == ''){ $error ++; }
+        if($autorizadoPorNombre == ''){ $error ++;}
+
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @mensaje varchar(255)
+                            EXEC @return_value = cambioCama_ordenar
+                                        @idCamaOrigen = :idCamaOrigen,
+                                        @idCamaDestino = :idCamaDestino,
+                                        @autorizadoPorDni = :autorizadoPorDni,
+                                        @autorizadoPorNombre = :autorizadoPorNombre,
+                                        @mensaje = @mensaje OUTPUT
+                            
+                            SELECT	@return_value as estado, @mensaje as mensaje';
+
+                    try {
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idCamaOrigen", $idCamaOrigen);
+                        $stmt->bindParam("idCamaDestino", $idCamaDestino);
+                        $stmt->bindParam("autorizadoPorDni", $autorizadoPorDni);
+                        $stmt->bindParam("autorizadoPorNombre", $autorizadoPorNombre);
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+
+                        $httpStatus = match((string)$res[0]->estado){  // Convierte a string para consistencia
+                            '0' => 500, // ocurrió un error al intentar ordenar el cambio de cama.
+                            '1' => 200, // cambio de cama ordenado exitosamente.
+                            '2' => 202, // cambio de cama aceptado, pero requiere que sea autorizado por Supervisión de Enfermería.
+                            default => 400  // Valor inesperado
+                        };
+
+                        $datos = [
+                            'estado' => $httpStatus,
+                            'mensaje' => $res[0]->mensaje
+                        ];
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
                     }    
