@@ -114,6 +114,7 @@ return function (App $app) {
             // APLICACION
             $g->get('/version', '\App\V2\TableroCamasController:versionAutorizada');
             $g->get('/horaServidor', '\App\V2\TableroCamasController:horaServidor');
+            $g->post('/login', '\App\V2\TableroCamasController:login');
 
             // SERVICIOS
             $g->get('/servicios', '\App\V2\TableroCamasController:serviciosVerTodos');
@@ -158,7 +159,12 @@ return function (App $app) {
             // RESERVAS
             $g->get('/reservas','\App\V2\TableroCamasController:reservasVerUna');
 
-            // $g->post('/camasActualizarEstados','\App\V2\TableroCamasController:camasActualizarEstados');
+            // TAREAS
+            $g->get('/tareas','\App\V2\TableroCamasController:tareas');
+            //$g->post('/tareasInciarFinalizar','\App\V2\TableroCamasController:tareasIniciarFinalizar');
+
+            // TICKETS
+            $g->get('/tickets/{idTicket}','\App\V2\TableroCamasController:ticket_ver');
         });
     });
 };

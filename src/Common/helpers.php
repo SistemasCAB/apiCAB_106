@@ -19,6 +19,21 @@ function getConeccionCAB() {
     return $dbh;
 }
 
+function getConneccionMySql() {
+    $dbhost="10.99.8.107";
+    $dbuser="root";
+    $dbpass="HOwQGPLcjS9utPHG";
+    $dbname="soporte";
+    $dbh = new \PDO(
+        "mysql:host=$dbhost;dbname=$dbname", 
+        $dbuser, 
+        $dbpass
+    );
+    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $acentos = $dbh->query("SET NAMES 'utf8'");
+    return $dbh;
+}
+
 
 function verificarToken($token) {
     try {

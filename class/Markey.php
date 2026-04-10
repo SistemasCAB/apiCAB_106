@@ -22,8 +22,7 @@ class Markey{
         }
         
         $this->resultadoLogin  = json_decode($respuesta);
-        curl_close($conexion);
-        
+           
         return $this->resultadoLogin;
     }
 
@@ -275,7 +274,7 @@ class Markey{
         }
 
         // Debug: loguear URL, status code y respuesta
-        error_log("cambiarCama - URL: $urlServicio | Status: $status | Respuesta: $respuesta | cURL Error: $curlError  | resultado: $resultado");
+        //error_log("cambiarCama - URL: $urlServicio | Status: $status | Respuesta: $respuesta | cURL Error: $curlError  | resultado: $resultado");
 
         return $resultado;
     }
