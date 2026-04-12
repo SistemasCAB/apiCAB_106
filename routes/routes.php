@@ -161,6 +161,7 @@ return function (App $app) {
 
             // TAREAS
             $g->get('/tareas','\App\V2\TableroCamasController:tareas');
+            $g->get('/tareasCama','\App\V2\TableroCamasController:tareasCama');
             //$g->post('/tareasInciarFinalizar','\App\V2\TableroCamasController:tareasIniciarFinalizar');
 
             // TICKETS

@@ -3814,6 +3814,119 @@ class TableroCamasController
         
     }
 
+    // VER LISTA DE TAREAS
+    public function tareasCama(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $parametros     = $request->getQueryParams();
+        $idTipoTarea    = $parametros['idTipoTarea'];        
+        $idCama         = $parametros['idCama'];
+
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // verifico que recibí todos los parámetros
+        if(($idTipoTarea == '') || ($idCama == '')){
+            $datos = array('estado' => 0,'mensaje' => 'Faltan parámetros obligatorios.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo la lista de tareas de la cama
+        $sql = 'EXEC tareasCama_ver @idTipoTarea = :idTipoTarea, @idCama = :idCama';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("idTipoTarea", $idTipoTarea);
+            $stmt->bindParam("idCama", $idCama);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $tarea){
+                $t = new \stdClass();
+                
+                $t->idTarea             = (int)$tarea->idTarea;
+                $t->tipoTarea           = $tarea->tipoTarea;
+                $t->fecha               = $tarea->fecha;
+                $t->idCama              = (int)$tarea->idCama;
+                $t->cama                = $tarea->cama;
+                $t->habitacion          = $tarea->habitacion;
+                $t->piso                = $tarea->piso;
+                $t->camaEnAislamiento   = (int)$tarea->camaEnAislamiento;
+                $t->estadoCama          = $tarea->estadoCama;
+                $t->sexoPaciente        = $tarea->sexoPaciente;
+                $t->solicitadaPorDni    = $tarea->solicitadaPorDni;
+                $t->solicitadaPorNombre = $tarea->solicitadaPorNombre;
+                $t->idServicioSolicita  = (int)$tarea->idServicioSolicita;
+                $t->nombreServicio      = $tarea->nombreServicio;
+                $t->iniciada            = $tarea->iniciada;
+                $t->iniciadaPorDni      = $tarea->iniciadaPorDni;
+                $t->iniciadaPorNombre   = $tarea->iniciadaPorNombre;
+                $t->cancelada           = $tarea->cancelada;
+                $t->canceladaPorDni     = $tarea->canceladaPorDni;
+                $t->canceladaPorNombre  = $tarea->canceladaPorNombre;
+                $t->idEstadoTarea       = (int)$tarea->idEstadoTarea;
+                $t->estado              = $tarea->estado;
+
+                // si es una tarea de reparacion, agrego los campos propios de una tarea de reparación
+                if($idTipoTarea == 2){
+                    $t->idReparacion        = (int)$tarea->idReparacion;
+                    $t->reparacion          = $tarea->reparacion;
+                    $t->idCategoria         = (int)$tarea->idCategoria;
+                    $t->categoria           = $tarea->categoria;
+                    $t->inhabilitaHab       = (int)$tarea->inhabilitaHab;
+                    $t->limpiezaPosterior   = (int)$tarea->limpiezaPosterior;
+                    $t->bloqueaCama         = (int)$tarea->bloqueaCama;
+                    $t->idPrioridad         = (int)$tarea->idPrioridad;
+                    $t->prioridad           = $tarea->prioridad;
+                    $t->ticket              = $tarea->ticket;
+
+                    // muestro el detalle del ticket.
+                    $con = 'select detalle from tk_detalles where id_ticket = :idTicket order by id_detalle limit 1';
+                    $db2 = getConneccionMySql(); 
+                    $stmt2= $db2->prepare($con);
+                    $stmt2->bindParam("idTicket", $tarea->ticket);
+                    $stmt2->execute();
+                    $res = $stmt2->fetchAll(\PDO::FETCH_OBJ);
+                    $db2 = null;
+
+                    foreach($res as $tk){
+                        $t->detalleTicket = $tk->detalle;
+                    }                    
+                }
+
+                array_push($datos,$t);
+                unset($t);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
+    }
+
     // INICIAR O FINALIZAR UNA TAREA
     // public function tareasIniciarFinalizar(Request $request, Response $response, $args){
     //     $tokenAcceso    = $request->getHeader('TokenAcceso');
