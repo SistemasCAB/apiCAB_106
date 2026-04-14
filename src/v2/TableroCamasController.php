@@ -3783,7 +3783,18 @@ class TableroCamasController
                     $t->ticket              = $tarea->ticket;
 
                     // muestro el detalle del ticket.
-                    $con = 'select detalle from tk_detalles where id_ticket = :idTicket order by id_detalle limit 1';
+                    $con = 'select JSON_ARRAYAGG(
+                                JSON_OBJECT(
+                                    "id_detalle", id_detalle,
+                                    "usuario", concat(u.nombre, " " , u.apellido ),
+                                    "fecha", fecha,
+                                    "detalle", detalle
+                                )
+                            ) as detalle
+                            from tk_detalles td
+                                left join usuarios u on td.id_usuario = u.id_usuario 
+                            where id_ticket = :idTicket 
+                            order by id_detalle';
                     $db2 = getConneccionMySql(); 
                     $stmt2= $db2->prepare($con);
                     $stmt2->bindParam("idTicket", $tarea->ticket);
@@ -3792,7 +3803,7 @@ class TableroCamasController
                     $db2 = null;
 
                     foreach($res as $tk){
-                        $t->detalleTicket = $tk->detalle;
+                        $t->detalleTicket = json_decode($tk->detalle);
                     }                    
                 }
 
@@ -3896,7 +3907,18 @@ class TableroCamasController
                     $t->ticket              = $tarea->ticket;
 
                     // muestro el detalle del ticket.
-                    $con = 'select detalle from tk_detalles where id_ticket = :idTicket order by id_detalle limit 1';
+                    $con = 'select JSON_ARRAYAGG(
+                                JSON_OBJECT(
+                                    "id_detalle", id_detalle,
+                                    "usuario", concat(u.nombre, " " , u.apellido ),
+                                    "fecha", fecha,
+                                    "detalle", detalle
+                                )
+                            ) as detalle
+                            from tk_detalles td
+                                left join usuarios u on td.id_usuario = u.id_usuario 
+                            where id_ticket = :idTicket 
+                            order by id_detalle';
                     $db2 = getConneccionMySql(); 
                     $stmt2= $db2->prepare($con);
                     $stmt2->bindParam("idTicket", $tarea->ticket);
@@ -3905,7 +3927,128 @@ class TableroCamasController
                     $db2 = null;
 
                     foreach($res as $tk){
-                        $t->detalleTicket = $tk->detalle;
+                        $t->detalleTicket = json_decode($tk->detalle);
+                    }                    
+                }
+
+                array_push($datos,$t);
+                unset($t);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
+    }
+
+    // VER UNA TAREA
+    public function tareasCama_VerUna(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $idTarea = $args['idTarea'] ?? null;
+
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // verifico que recibí todos los parámetros
+        if($idTarea == ''){
+            $datos = array('estado' => 0,'mensaje' => 'Faltan parámetros obligatorios.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo la tarea solicitada
+        $sql = 'EXEC tareasCama_verUna @idTarea = :idTarea';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("idTarea", $idTarea);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $tarea){
+                $t = new \stdClass();
+                
+                $t->idTarea             = (int)$tarea->idTarea;
+                $t->tipoTarea           = $tarea->tipoTarea;
+                $t->fecha               = $tarea->fecha;
+                $t->idCama              = (int)$tarea->idCama;
+                $t->cama                = $tarea->cama;
+                $t->habitacion          = $tarea->habitacion;
+                $t->piso                = $tarea->piso;
+                $t->camaEnAislamiento   = (int)$tarea->camaEnAislamiento;
+                $t->estadoCama          = $tarea->estadoCama;
+                $t->sexoPaciente        = $tarea->sexoPaciente;
+                $t->solicitadaPorDni    = $tarea->solicitadaPorDni;
+                $t->solicitadaPorNombre = $tarea->solicitadaPorNombre;
+                $t->idServicioSolicita  = (int)$tarea->idServicioSolicita;
+                $t->nombreServicio      = $tarea->nombreServicio;
+                $t->iniciada            = $tarea->iniciada;
+                $t->iniciadaPorDni      = $tarea->iniciadaPorDni;
+                $t->iniciadaPorNombre   = $tarea->iniciadaPorNombre;
+                $t->cancelada           = $tarea->cancelada;
+                $t->canceladaPorDni     = $tarea->canceladaPorDni;
+                $t->canceladaPorNombre  = $tarea->canceladaPorNombre;
+                $t->idEstadoTarea       = (int)$tarea->idEstadoTarea;
+                $t->estado              = $tarea->estado;
+
+                // si es una tarea de reparacion, agrego los campos propios de una tarea de reparación
+                if($tarea->idTipoTarea == 2){
+                    $t->idReparacion        = (int)$tarea->idReparacion;
+                    $t->reparacion          = $tarea->reparacion;
+                    $t->idCategoria         = (int)$tarea->idCategoria;
+                    $t->categoria           = $tarea->categoria;
+                    $t->inhabilitaHab       = (int)$tarea->inhabilitaHab;
+                    $t->limpiezaPosterior   = (int)$tarea->limpiezaPosterior;
+                    $t->bloqueaCama         = (int)$tarea->bloqueaCama;
+                    $t->idPrioridad         = (int)$tarea->idPrioridad;
+                    $t->prioridad           = $tarea->prioridad;
+                    $t->ticket              = $tarea->ticket;
+
+                    // muestro el detalle del ticket.
+                    $con = 'select JSON_ARRAYAGG(
+                                JSON_OBJECT(
+                                    "id_detalle", id_detalle,
+                                    "usuario", concat(u.nombre, " " , u.apellido ),
+                                    "fecha", DATE_FORMAT(fecha, "%Y-%m-%d %H:%i:%s"),
+                                    "detalle", detalle
+                                )
+                            ) as detalle
+                            from tk_detalles td
+                                left join usuarios u on td.id_usuario = u.id_usuario 
+                            where id_ticket = :idTicket 
+                            order by id_detalle';
+                    $db2 = getConneccionMySql(); 
+                    $stmt2= $db2->prepare($con);
+                    $stmt2->bindParam("idTicket", $tarea->ticket);
+                    $stmt2->execute();
+                    $res = $stmt2->fetchAll(\PDO::FETCH_OBJ);
+                    $db2 = null;
+
+                    foreach($res as $tk){
+                        $t->detalleTicket = json_decode($tk->detalle);
                     }                    
                 }
 
@@ -3928,105 +4071,105 @@ class TableroCamasController
     }
 
     // INICIAR O FINALIZAR UNA TAREA
-    // public function tareasIniciarFinalizar(Request $request, Response $response, $args){
-    //     $tokenAcceso    = $request->getHeader('TokenAcceso');
-    //     $json           = $request->getBody();
-    //     $datosTarea     = json_decode($json);
+    public function tareaIniciarFinalizar(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosTarea     = json_decode($json);
    
-    //     $idTarea   = $datosTarea->idTarea ?? null;
-    //     $idUsuario = $datosTarea->idUsuario ?? null;
-    //     $accion    = $datosTarea->accion ?? null;
+        $idTarea   = $datosTarea->idTarea ?? null;
+        $idUsuario = $datosTarea->idUsuario ?? null;
+        $accion    = $datosTarea->accion ?? null;
         
 
-    //     $error = 0;
-    //     $datos = array();
+        $error = 0;
+        $datos = array();
 
-    //     if($idTarea == ''){ $error ++; }
-    //     if($idUsuario == ''){ $error ++; } 
-    //     if($accion == ''){ $error ++; } 
-    //     if($accion <> 'iniciar' && $accion <> 'finalizar'){ $error ++; } 
+        if($idTarea == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; } 
+        if($accion == ''){ $error ++; } 
+        if($accion <> 'iniciar' && $accion <> 'finalizar'){ $error ++; } 
         
 
-    //     // si no envió el tokenAcceso
-    //     if(!isset($tokenAcceso[0])){            
-    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     // Si el token enviado no es correcto
-    //     if(verificarToken($tokenAcceso[0]) === false){                
-    //         // acceso denegado
-    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     // si los parámetros recibos no son válidos
-    //     if ($error > 0) {
-    //         $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     // INICIAR TAREA
-    //     if($accion == 'iniciar'){
+        // INICIAR TAREA
+        if($accion == 'iniciar'){
 
-    //     }
+        }
         
                         
-    //     $sql = 'EXEC accesoAplicacion
-    //                 @tdocCodigo = :tdocCodigo,
-    //                 @nroDocumento = :nroDocumento,
-    //                 @idAplicacion = :idAplicacion';
+        // $sql = 'EXEC accesoAplicacion
+        //             @tdocCodigo = :tdocCodigo,
+        //             @nroDocumento = :nroDocumento,
+        //             @idAplicacion = :idAplicacion';
 
-    //     try {
-    //         $db = getConeccionCAB();
-    //         $stmt = $db->prepare($sql);
-    //         $stmt->bindParam("tdocCodigo", $tdocCodigo);
-    //         $stmt->bindParam("nroDocumento", $nroDocumento);
-    //         $stmt->bindParam("idAplicacion", $idAplicacion);
-    //         $stmt->execute();
-    //         $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
-    //         $db = null;
+        // try {
+        //     $db = getConeccionCAB();
+        //     $stmt = $db->prepare($sql);
+        //     $stmt->bindParam("tdocCodigo", $tdocCodigo);
+        //     $stmt->bindParam("nroDocumento", $nroDocumento);
+        //     $stmt->bindParam("idAplicacion", $idAplicacion);
+        //     $stmt->execute();
+        //     $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        //     $db = null;
 
-    //         // si no tiene acceso a la aplicación.
-    //         if($res[0]->estado == 0){
-    //             $datos = array('estado' => 403, 'mensaje' => $res[0]->mensaje);
-    //             $response->getBody()->write(json_encode($datos));
-    //             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);    
-    //         }
+        //     // si no tiene acceso a la aplicación.
+        //     if($res[0]->estado == 0){
+        //         $datos = array('estado' => 403, 'mensaje' => $res[0]->mensaje);
+        //         $response->getBody()->write(json_encode($datos));
+        //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);    
+        //     }
             
 
-    //         foreach($res as $login){
-    //             $u = new \stdClass();
-    //             $u->estado = (int)$login->estado;
-    //             $u->apellido = $login->apellido;
-    //             $u->nombre = $login->nombre;
-    //             $u->tdocCodigo = $login->tdocCodigo;
-    //             $u->tdocDescripcion = $login->tdocDescripcion;
-    //             $u->nroDocumento = $login->nroDocumento;
-    //             $u->idAplicacion = $login->idAplicacion;
-    //             $u->aplicacion = $login->aplicacion;
-    //             //$u->servicios = $login->servicios;
-    //             if (!empty($login->servicios)) {
-    //                 $u->servicios = json_decode($login->servicios, true);
-    //             }else{
-    //                 $u->servicios = array();
-    //             };
-    //             array_push($datos,$u);
-    //             unset($u);
-    //         }
+        //     foreach($res as $login){
+        //         $u = new \stdClass();
+        //         $u->estado = (int)$login->estado;
+        //         $u->apellido = $login->apellido;
+        //         $u->nombre = $login->nombre;
+        //         $u->tdocCodigo = $login->tdocCodigo;
+        //         $u->tdocDescripcion = $login->tdocDescripcion;
+        //         $u->nroDocumento = $login->nroDocumento;
+        //         $u->idAplicacion = $login->idAplicacion;
+        //         $u->aplicacion = $login->aplicacion;
+        //         //$u->servicios = $login->servicios;
+        //         if (!empty($login->servicios)) {
+        //             $u->servicios = json_decode($login->servicios, true);
+        //         }else{
+        //             $u->servicios = array();
+        //         };
+        //         array_push($datos,$u);
+        //         unset($u);
+        //     }
 
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        //     $response->getBody()->write(json_encode($datos));
+        //     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
             
-    //     } catch(\PDOException $e) {
-    //         $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //     }           
-    // }
+        // } catch(\PDOException $e) {
+        //     $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
+        //     $response->getBody()->write(json_encode($datos));
+        //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        // }           
+    }
 
     
     
