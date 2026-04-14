@@ -4071,105 +4071,205 @@ class TableroCamasController
     }
 
     // INICIAR O FINALIZAR UNA TAREA
-    public function tareaIniciarFinalizar(Request $request, Response $response, $args){
-        $tokenAcceso    = $request->getHeader('TokenAcceso');
-        $json           = $request->getBody();
-        $datosTarea     = json_decode($json);
+    // public function tareaIniciarFinalizarCancelar(Request $request, Response $response, $args){
+    //     $tokenAcceso    = $request->getHeader('TokenAcceso');
+    //     $json           = $request->getBody();
+    //     $datosTarea     = json_decode($json);
    
-        $idTarea   = $datosTarea->idTarea ?? null;
-        $idUsuario = $datosTarea->idUsuario ?? null;
-        $accion    = $datosTarea->accion ?? null;
+    //     $idTarea   = $datosTarea->idTarea ?? null;
+    //     $idUsuario = $datosTarea->idUsuario ?? null;
+    //     $accion    = $datosTarea->accion ?? null;
         
 
-        $error = 0;
-        $datos = array();
+    //     $error = 0;
+    //     $datos = array();
 
-        if($idTarea == ''){ $error ++; }
-        if($idUsuario == ''){ $error ++; } 
-        if($accion == ''){ $error ++; } 
-        if($accion <> 'iniciar' && $accion <> 'finalizar'){ $error ++; } 
+    //     if($idTarea == ''){ $error ++; }
+    //     if($idUsuario == ''){ $error ++; } 
+    //     if($accion == ''){ $error ++; } 
+    //     if($accion <> 'iniciar' && $accion <> 'finalizar' && $accion <> 'cancelar'){ $error ++; } 
         
 
-        // si no envió el tokenAcceso
-        if(!isset($tokenAcceso[0])){            
-            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-            $response->getBody()->write(json_encode($datos));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-        }
+    //     // si no envió el tokenAcceso
+    //     if(!isset($tokenAcceso[0])){            
+    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+    //         $response->getBody()->write(json_encode($datos));
+    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+    //     }
 
-        // Si el token enviado no es correcto
-        if(verificarToken($tokenAcceso[0]) === false){                
-            // acceso denegado
-            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-            $response->getBody()->write(json_encode($datos));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-        }
+    //     // Si el token enviado no es correcto
+    //     if(verificarToken($tokenAcceso[0]) === false){                
+    //         // acceso denegado
+    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+    //         $response->getBody()->write(json_encode($datos));
+    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+    //     }
 
-        // si los parámetros recibos no son válidos
-        if ($error > 0) {
-            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
-            $response->getBody()->write(json_encode($datos));
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-        }
+    //     // si los parámetros recibos no son válidos
+    //     if ($error > 0) {
+    //         $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+    //         $response->getBody()->write(json_encode($datos));
+    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+    //     }
 
-        // INICIAR TAREA
-        if($accion == 'iniciar'){
-
-        }
-        
+    //     // INICIAR TAREA
+    //     if($accion == 'iniciar'){
+    //         try {
+    //             $db = getConeccionCAB();
+                
+    //             // Inicia la transacción
+    //             $db->beginTransaction();
+                
+    //             $sql = 'EXEC tarea_iniciarFinalizarCancelar
+    //                         @idTarea = :idTarea,
+    //                         @idUsuario = :idUsuario,
+    //                         @accion = :accion';
                         
-        // $sql = 'EXEC accesoAplicacion
-        //             @tdocCodigo = :tdocCodigo,
-        //             @nroDocumento = :nroDocumento,
-        //             @idAplicacion = :idAplicacion';
+                
+    //             $stmt = $db->prepare($sql);
+    //             $stmt->bindParam(":idTarea", $idTarea);
+    //             $stmt->bindParam(":idUsuario", $idUsuario);
+    //             $stmt->bindParam(":accion", $accion);
+    //             $stmt->execute();
+                
+    //             $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                
+    //             // Validar que el procedimiento retornó resultados
+    //             if (empty($res)) {
+    //                 throw new \Exception('El procedimiento no retornó resultados');
+    //             }
+                
+    //             $estado = (int)$res[0]->estado;
+    //             $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+                
+    //             // Si el procedimiento devolvió error (estado = 0)
+    //             if ($estado === 0) {
+    //                 // Revierte la transacción
+    //                 $db->rollBack();
+                    
+    //                 $datos = array(
+    //                         'estado' => 0, 
+    //                         'mensaje' => $mensaje
+    //                     );
+    //                 $response->getBody()->write(json_encode($datos));
+    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    //                 $db = null;
+    //             }else{
+    //                 $idTicket = $estado; // número de ticket asignado a la tarea. Podría ser 1 en caso de tareas de limpieza.
+    //             }
+                
+    //             // Si el procedimiento fue exitoso (estado = 1)
+                
+    //             // PASO 2: Cambio el estado del ticket según corresponda. (campo id_estado. 2= En proceso, 4= Resuelto, 10 = Cerrado)
+                
+    //             $db2 = getConneccionMySql();
+    //             switch ($accion){
+    //                 case 'iniciar':
+    //                     $sql2 = 'update tickets set id_estado = 2 where id_ticket = :id_ticket';
+    //                     break;
+    //                 case 'finilizar':
+    //                     $sql2 = 'update tickets set id_estado = 4 where id_ticket = :id_ticket';
+    //                     break;
+    //                 case 'cancelar':
+    //                     $sql2 = 'update tickets set id_estado = 10, abierto = 0 where id_ticket = :id_ticket';
+    //                     break;
+    //             }
+                
+                
+                
+    //             $stmt2 = $db2->prepare($sql2);
+    //             $stmt2->bindParam(":id_ticket", $idTicket);
+    //             $stmt2->execute();
+    //             $res2 = $stmt2->fetchAll(\PDO::FETCH_OBJ);
+                
+    //             $idCamaOrigen   = (int)$res2[0]->idCamaOrigen;
+    //             $idCamaDestino  = (int)$res2[0]->idCamaDestino;
+    //             $idInternacion  = (int)$res2[0]->idInternacion;
+    //             $paciCodigo     = (int)$res2[0]->paciCodigo;
+                
+    //             //error_log("idCamaOrigen: " . $idCamaOrigen. '- idCamaDestino: '. $idCamaDestino. ' idInternacion: ' . $idInternacion . ' paciCodigo: '. $paciCodigo);
 
-        // try {
-        //     $db = getConeccionCAB();
-        //     $stmt = $db->prepare($sql);
-        //     $stmt->bindParam("tdocCodigo", $tdocCodigo);
-        //     $stmt->bindParam("nroDocumento", $nroDocumento);
-        //     $stmt->bindParam("idAplicacion", $idAplicacion);
-        //     $stmt->execute();
-        //     $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
-        //     $db = null;
+    //             require_once '../class/Markey.php';
+    //             $Markey = new \Markey;
+    //             $resultadoCambiarEstado = $Markey->cambiarEstado($idCamaDestino, 1);
 
-        //     // si no tiene acceso a la aplicación.
-        //     if($res[0]->estado == 0){
-        //         $datos = array('estado' => 403, 'mensaje' => $res[0]->mensaje);
-        //         $response->getBody()->write(json_encode($datos));
-        //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);    
-        //     }
-            
+    //             if($resultadoCambiarEstado == 0){
+    //                 // ocurrió algún error.
+    //                 $db->rollBack();
+                        
+    //                 $datos = array(
+    //                     'estado' => 0, 
+    //                     'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
+    //                 );
+    //                 $response->getBody()->write(json_encode($datos));
+    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    //                 $db = null;
+    //             }
 
-        //     foreach($res as $login){
-        //         $u = new \stdClass();
-        //         $u->estado = (int)$login->estado;
-        //         $u->apellido = $login->apellido;
-        //         $u->nombre = $login->nombre;
-        //         $u->tdocCodigo = $login->tdocCodigo;
-        //         $u->tdocDescripcion = $login->tdocDescripcion;
-        //         $u->nroDocumento = $login->nroDocumento;
-        //         $u->idAplicacion = $login->idAplicacion;
-        //         $u->aplicacion = $login->aplicacion;
-        //         //$u->servicios = $login->servicios;
-        //         if (!empty($login->servicios)) {
-        //             $u->servicios = json_decode($login->servicios, true);
-        //         }else{
-        //             $u->servicios = array();
-        //         };
-        //         array_push($datos,$u);
-        //         unset($u);
-        //     }
+    //             // PASO 3 - Realizo el cambio de cama en Markey
+    //             $resultadoCambiarPaciente = $Markey->cambiarCama($idCamaOrigen, $idCamaDestino, $idInternacion, $paciCodigo, $realizadoPorDni);
+    //             if($resultadoCambiarPaciente == 0){
+    //                 // ocurrió algún error.
+    //                 $db->rollBack();
+                        
+    //                 $datos = array(
+    //                     'estado' => 0, 
+    //                     'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
+    //                 );
+    //                 $response->getBody()->write(json_encode($datos));
+    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    //                 $db = null;
+    //             }
 
-        //     $response->getBody()->write(json_encode($datos));
-        //     return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-            
-        // } catch(\PDOException $e) {
-        //     $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
-        //     $response->getBody()->write(json_encode($datos));
-        //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-        // }           
-    }
+                
+    //             // PASO 4 - Cambio el estado de la cama origen.                       
+                
+    //             $resultadoCambiarEstado2 = $Markey->cambiarEstado($idCamaOrigen, $nuevoEstado);
+
+    //             //error_log("idEstado cama origen: " . $nuevoEstado. '- resultadoCambiarEstado2: '. $resultadoCambiarEstado2);
+
+    //             if($resultadoCambiarEstado2 == 0){
+    //                 // ocurrió algún error.
+    //                 $db->rollBack();
+                        
+    //                 $datos = array(
+    //                     'estado' => 0, 
+    //                     'mensaje' => 'Error al cambiar el estado de la cama origen en Markey. Endpoit: cambiarEstado'
+    //                 );
+    //                 $response->getBody()->write(json_encode($datos));
+    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    //                 $db = null;
+    //             }
+                
+                
+    //             // Si todo está bien, confirma la transacción
+    //             $db->commit();
+                
+    //             $datos = array(
+    //                     'estado' => 1, 
+    //                     'mensaje' => 'El cambio de cama fue registrado correctamente.'
+    //                 );
+    //             $response->getBody()->write(json_encode($datos));
+    //             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+    //             $db = null;
+                
+    //         } catch (\Exception $e) {
+    //             // Cualquier otro error
+    //             if ($db && $db->inTransaction()) {
+    //                 $db->rollBack();
+    //             }
+                
+    //             $datos = array(
+    //                     'estado' => 0, 
+    //                     'mensaje' => 'Error: ' . $e->getMessage()
+    //                 );
+    //             $response->getBody()->write(json_encode($datos));
+    //             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+    //             $db = null;                        
+    //         }                
+
+    //     } // FIN INICIAR TAREA       
+    // }
 
     
     

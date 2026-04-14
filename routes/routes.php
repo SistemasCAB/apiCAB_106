@@ -163,7 +163,7 @@ return function (App $app) {
             $g->get('/tareas','\App\V2\TableroCamasController:tareas');
             $g->get('/tareasCama','\App\V2\TableroCamasController:tareasCama');
             $g->get('/tareasCama/{idTarea}','\App\V2\TableroCamasController:tareasCama_VerUna');
-            $g->post('/tareaInciarFinalizar','\App\V2\TableroCamasController:tareaIniciarFinalizar');
+            //$g->post('/tareaIniciarFinalizarCancelar','\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
 
             // TICKETS
             $g->get('/tickets/{idTicket}','\App\V2\TableroCamasController:ticket_ver');
