@@ -3675,12 +3675,12 @@ class TableroCamasController
                 $u->estado = (int)$login->estado;
                 $u->apellido = $login->apellido;
                 $u->nombre = $login->nombre;
-                $u->tdocCodigo = $login->tdocCodigo;
+                $u->tdocCodigo = (int)$login->tdocCodigo;
                 $u->tdocDescripcion = $login->tdocDescripcion;
                 $u->nroDocumento = $login->nroDocumento;
-                $u->idAplicacion = $login->idAplicacion;
+                $u->idUsuario = (int)$login->idUsuario;
+                $u->idAplicacion = (int)$login->idAplicacion;
                 $u->aplicacion = $login->aplicacion;
-                //$u->servicios = $login->servicios;
                 if (!empty($login->servicios)) {
                     $u->servicios = json_decode($login->servicios, true);
                 }else{
@@ -3702,6 +3702,11 @@ class TableroCamasController
                 
             
     }
+
+
+//------------------------------------------------
+//                  TAREAS                
+//------------------------------------------------
 
     // VER LISTA DE TAREAS
     public function tareas(Request $request, Response $response, $args){
@@ -3825,7 +3830,7 @@ class TableroCamasController
         
     }
 
-    // VER LISTA DE TAREAS
+    // VER LISTA DE TAREAS DE UNA CAMA
     public function tareasCama(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');
         $parametros     = $request->getQueryParams();
@@ -4070,210 +4075,320 @@ class TableroCamasController
         
     }
 
-    // INICIAR O FINALIZAR UNA TAREA
-    // public function tareaIniciarFinalizarCancelar(Request $request, Response $response, $args){
-    //     $tokenAcceso    = $request->getHeader('TokenAcceso');
-    //     $json           = $request->getBody();
-    //     $datosTarea     = json_decode($json);
+    // INICIAR, FINALIZAR O CANCELAR UNA TAREA
+    public function tareaIniciarFinalizarCancelar(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosTarea     = json_decode($json);
    
-    //     $idTarea   = $datosTarea->idTarea ?? null;
-    //     $idUsuario = $datosTarea->idUsuario ?? null;
-    //     $accion    = $datosTarea->accion ?? null;
+        $idTarea   = $datosTarea->idTarea ?? null;
+        $idUsuario = $datosTarea->idUsuario ?? null;
+        $accion    = $datosTarea->accion ?? null;
+        
+        $error = 0;
+        $datos = array();
+
+        if($idTarea == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; } 
+        if($accion == ''){ $error ++; } 
+        if($accion <> 'iniciar' && $accion <> 'finalizar' && $accion <> 'cancelar'){ $error ++; } 
         
 
-    //     $error = 0;
-    //     $datos = array();
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     if($idTarea == ''){ $error ++; }
-    //     if($idUsuario == ''){ $error ++; } 
-    //     if($accion == ''){ $error ++; } 
-    //     if($accion <> 'iniciar' && $accion <> 'finalizar' && $accion <> 'cancelar'){ $error ++; } 
-        
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     // si no envió el tokenAcceso
-    //     if(!isset($tokenAcceso[0])){            
-    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
 
-    //     // Si el token enviado no es correcto
-    //     if(verificarToken($tokenAcceso[0]) === false){                
-    //         // acceso denegado
-    //         $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
-
-    //     // si los parámetros recibos no son válidos
-    //     if ($error > 0) {
-    //         $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
-    //         $response->getBody()->write(json_encode($datos));
-    //         return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-    //     }
-
-    //     // INICIAR TAREA
-    //     if($accion == 'iniciar'){
-    //         try {
-    //             $db = getConeccionCAB();
-                
-    //             // Inicia la transacción
-    //             $db->beginTransaction();
-                
-    //             $sql = 'EXEC tarea_iniciarFinalizarCancelar
-    //                         @idTarea = :idTarea,
-    //                         @idUsuario = :idUsuario,
-    //                         @accion = :accion';
-                        
-                
-    //             $stmt = $db->prepare($sql);
-    //             $stmt->bindParam(":idTarea", $idTarea);
-    //             $stmt->bindParam(":idUsuario", $idUsuario);
-    //             $stmt->bindParam(":accion", $accion);
-    //             $stmt->execute();
-                
-    //             $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
-                
-    //             // Validar que el procedimiento retornó resultados
-    //             if (empty($res)) {
-    //                 throw new \Exception('El procedimiento no retornó resultados');
-    //             }
-                
-    //             $estado = (int)$res[0]->estado;
-    //             $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
-                
-    //             // Si el procedimiento devolvió error (estado = 0)
-    //             if ($estado === 0) {
-    //                 // Revierte la transacción
-    //                 $db->rollBack();
+        // Ejecuto la acción: 1re. en la base de datos CAB y luego en las base de datos soporte (Tickets)
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+            
+            $sql = 'EXEC tarea_iniciarFinalizarCancelar
+                        @idTarea = :idTarea,
+                        @idUsuario = :idUsuario,
+                        @accion = :accion';
                     
-    //                 $datos = array(
-    //                         'estado' => 0, 
-    //                         'mensaje' => $mensaje
-    //                     );
-    //                 $response->getBody()->write(json_encode($datos));
-    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //                 $db = null;
-    //             }else{
-    //                 $idTicket = $estado; // número de ticket asignado a la tarea. Podría ser 1 en caso de tareas de limpieza.
-    //             }
+            
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idTarea", $idTarea);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":accion", $accion);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            $estado = (int)$res[0]->estado;
+            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
                 
-    //             // Si el procedimiento fue exitoso (estado = 1)
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => $mensaje
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }else{
+                $idTicket = $estado; // número de ticket asignado a la tarea. Podría ser 1 en caso de tareas de limpieza.
+            }
+            
+            // Si el procedimiento fue exitoso (estado <> 0)
+            
+            // PASO 2: Cambio el estado del ticket según corresponda. (campo id_estado. 2= En proceso, 4= Resuelto, 10 = Cerrado)
+            
+            if($idTicket > 1){
+                // es una tarea de reparación y debo modificar el ticket correspodiente
+                $db2 = getConneccionMySql();                             
+                $sql2 = 'CALL actualizarTicket(:id_ticket, :accion)';
                 
-    //             // PASO 2: Cambio el estado del ticket según corresponda. (campo id_estado. 2= En proceso, 4= Resuelto, 10 = Cerrado)
-                
-    //             $db2 = getConneccionMySql();
-    //             switch ($accion){
-    //                 case 'iniciar':
-    //                     $sql2 = 'update tickets set id_estado = 2 where id_ticket = :id_ticket';
-    //                     break;
-    //                 case 'finilizar':
-    //                     $sql2 = 'update tickets set id_estado = 4 where id_ticket = :id_ticket';
-    //                     break;
-    //                 case 'cancelar':
-    //                     $sql2 = 'update tickets set id_estado = 10, abierto = 0 where id_ticket = :id_ticket';
-    //                     break;
-    //             }
-                
-                
-                
-    //             $stmt2 = $db2->prepare($sql2);
-    //             $stmt2->bindParam(":id_ticket", $idTicket);
-    //             $stmt2->execute();
-    //             $res2 = $stmt2->fetchAll(\PDO::FETCH_OBJ);
-                
-    //             $idCamaOrigen   = (int)$res2[0]->idCamaOrigen;
-    //             $idCamaDestino  = (int)$res2[0]->idCamaDestino;
-    //             $idInternacion  = (int)$res2[0]->idInternacion;
-    //             $paciCodigo     = (int)$res2[0]->paciCodigo;
-                
-    //             //error_log("idCamaOrigen: " . $idCamaOrigen. '- idCamaDestino: '. $idCamaDestino. ' idInternacion: ' . $idInternacion . ' paciCodigo: '. $paciCodigo);
+                $stmt2 = $db2->prepare($sql2);
+                $stmt2->bindParam(":id_ticket", $idTicket);
+                $stmt2->bindParam(":accion", $accion);
+                $stmt2->execute();
+                $res2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
 
-    //             require_once '../class/Markey.php';
-    //             $Markey = new \Markey;
-    //             $resultadoCambiarEstado = $Markey->cambiarEstado($idCamaDestino, 1);
+                if($res2['estado'] == 0){
+                    // Ocurrió un error al actualizar el ticket
+                    $db->rollBack();
+                    $db = null;
+                    $db2 = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => $res2['mensaje']
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }            
+            
+            // Si todo está bien, confirma la transacción
+            switch ($accion) {
+                case 'iniciar':
+                    $accionMensaje = 'inició';
+                    break;
+                case 'finalizar':
+                    $accionMensaje = 'finalizó';
+                    break;
+                case 'cancelar':
+                    $accionMensaje = 'canceló';
+                    break;                
+            }
 
-    //             if($resultadoCambiarEstado == 0){
-    //                 // ocurrió algún error.
-    //                 $db->rollBack();
-                        
-    //                 $datos = array(
-    //                     'estado' => 0, 
-    //                     'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
-    //                 );
-    //                 $response->getBody()->write(json_encode($datos));
-    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //                 $db = null;
-    //             }
+            $db->commit();
+            $db = null;
+            $datos = array(
+                    'estado' => 1, 
+                    'mensaje' => 'La tarea se '.$accionMensaje.' correctamente.'
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        }      
+    }
 
-    //             // PASO 3 - Realizo el cambio de cama en Markey
-    //             $resultadoCambiarPaciente = $Markey->cambiarCama($idCamaOrigen, $idCamaDestino, $idInternacion, $paciCodigo, $realizadoPorDni);
-    //             if($resultadoCambiarPaciente == 0){
-    //                 // ocurrió algún error.
-    //                 $db->rollBack();
-                        
-    //                 $datos = array(
-    //                     'estado' => 0, 
-    //                     'mensaje' => 'Error al intentar disponibilizar la cama destino. Endpoit: cambiarEstado'
-    //                 );
-    //                 $response->getBody()->write(json_encode($datos));
-    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //                 $db = null;
-    //             }
+    // CREAR UNA TAREA DE REPARACIÓN. 
+    public function tareaReparacionCrear(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosTarea     = json_decode($json);
+   
+        $idCama         = $datosTarea->idCama ?? null;
+        $idUsuario      = $datosTarea->idUsuario ?? null;
+        $idServicio     = $datosTarea->idServicio ?? null;
+        $idReparacion   = $datosTarea->idReparacion ?? null;
+
+        
+        $error = 0;
+        $datos = array();
+
+        if($idCama == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; } 
+        if($idServicio == ''){ $error ++; }
+        if($idReparacion == ''){ $error ++; }
+
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // 1) Creo la tarea 2) creo el ticket 3) actualizo la tarea para guardar el número de ticket que se le asignó.
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+            
+            $sql = 'EXEC tareaReparacionCrear
+                        @idCama = :idCama,
+                        @idUsuario = :idUsuario,
+                        @idServicio = :idServicio,
+                        @idReparacion = :idReparacion';
+                    
+            
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idCama", $idCama);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":idServicio", $idServicio);
+            $stmt->bindParam(":idReparacion", $idReparacion);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            $estado = (int)$res[0]->estado;
+            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => $mensaje
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }else{
+                $idTarea = $estado; // número de tarea creada
+            }
+            
+            // Si el procedimiento fue exitoso (estado <> 0)
+            
+            // PASO 2: Creo el ticket
+            
+            if($idTarea > 1){
+                $db2 = getConneccionMySql();
+
+                $sql2 = 'CALL crearTicket(:p_id_depto_destino, :p_creado_por, :p_id_depto_origen, :p_titulo, :p_id_prioridad, :p_id_origen, :p_detalle)';
+                
+                $stmt2 = $db2->prepare($sql2);
+                
+                // obtener estos valores desde la tabla reparaciones
+                $tituloTicket = '';                
+                $prioridad = 2; 
+                $detalle = '';
+
+                $stmt2->bindParam(":p_id_depto_destino", 2); // Mantenimiento
+                $stmt2->bindParam(":p_creado_por", 108); // usuario Enfermeria CAB
+                $stmt2->bindParam(":p_id_depto_origen", 17); // depto Enfermería
+                $stmt2->bindParam(":p_titulo", $tituloTicket);
+                $stmt2->bindParam(":p_id_prioridad", $prioridad);
+                $stmt2->bindParam(":p_id_origen", 1); // Mesa de Ayuda
+                $stmt2->bindParam(":p_detalle", $detalle);
 
                 
-    //             // PASO 4 - Cambio el estado de la cama origen.                       
-                
-    //             $resultadoCambiarEstado2 = $Markey->cambiarEstado($idCamaOrigen, $nuevoEstado);
+                $stmt2->execute();
+                $res2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
 
-    //             //error_log("idEstado cama origen: " . $nuevoEstado. '- resultadoCambiarEstado2: '. $resultadoCambiarEstado2);
-
-    //             if($resultadoCambiarEstado2 == 0){
-    //                 // ocurrió algún error.
-    //                 $db->rollBack();
-                        
-    //                 $datos = array(
-    //                     'estado' => 0, 
-    //                     'mensaje' => 'Error al cambiar el estado de la cama origen en Markey. Endpoit: cambiarEstado'
-    //                 );
-    //                 $response->getBody()->write(json_encode($datos));
-    //                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //                 $db = null;
-    //             }
-                
-                
-    //             // Si todo está bien, confirma la transacción
-    //             $db->commit();
-                
-    //             $datos = array(
-    //                     'estado' => 1, 
-    //                     'mensaje' => 'El cambio de cama fue registrado correctamente.'
-    //                 );
-    //             $response->getBody()->write(json_encode($datos));
-    //             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-    //             $db = null;
-                
-    //         } catch (\Exception $e) {
-    //             // Cualquier otro error
-    //             if ($db && $db->inTransaction()) {
-    //                 $db->rollBack();
-    //             }
-                
-    //             $datos = array(
-    //                     'estado' => 0, 
-    //                     'mensaje' => 'Error: ' . $e->getMessage()
-    //                 );
-    //             $response->getBody()->write(json_encode($datos));
-    //             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-    //             $db = null;                        
-    //         }                
-
-    //     } // FIN INICIAR TAREA       
-    // }
+                if($res2['estado'] == 0){
+                    // Ocurrió un error al crear el ticket
+                    $db->rollBack();
+                    $db = null;
+                    $db2 = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => $res2['mensaje']
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }            
+            
+            // Si todo está bien, confirma la transacción
+            
+            $db->commit();
+            $db = null;
+            $datos = array(
+                    'estado' => 1, 
+                    'mensaje' => 'La tarea se creo correctamente.'
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        }      
+    }
 
     
     
-    
+//------------------------------------------------
+//                  TICKETS
+//------------------------------------------------    
 
     // VER UN TICKET
     public function ticket_ver(Request $request, Response $response, $args){
