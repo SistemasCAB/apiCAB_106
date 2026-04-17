@@ -93,7 +93,7 @@ function limpiarAlertasHistoriasCama($idCama){
 
 function crearAlertaCamaDisponible($idCama){
     $sql = 'declare @mensaje varchar(255)
-            EXEC alertasNueva @idCama = :idCama, @idAlerta = 13, @mensaje = @mensaje OUTPUT';
+            EXEC alertaNueva @idCama = :idCama, @idTipoAlerta = 13, @mensaje = @mensaje OUTPUT';
     $db = getConeccionCAB();
     $stmt = $db->prepare($sql);
     $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
@@ -117,4 +117,18 @@ function bitacoraRegistrarCambioEstadoCama($idCama, $idEvento, $dni, $nombreUsua
     $stmt->execute();
     $db = null;
     return true;
+}
+
+
+function encriptar($string) {
+    // encripita el número de ticket + un número x (x puede ser 0,1,2,3) 0 = enviados abiertos, 1 = enviados cerrados, 2 = recibidos abiertos, 3 = recibidos cerrados.
+	$key = '8125';
+	$result = '';
+	for($i=0; $i<strlen($string); $i++) {
+		$char = substr($string, $i, 1);
+		$keychar = substr($key, ($i % strlen($key))-1, 1);
+		$char = chr(ord($char)+ord($keychar));
+		$result.=$char;
+	}
+	return base64_encode($result);
 }

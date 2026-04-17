@@ -995,7 +995,7 @@ class TableroCamasController
                 // acceso permitido
                 if($error == 0){
                     // obtengo la cama solicitada
-                    $sql = 'EXEC camasVerUna @idCama = :idCama, @idServicio = :idServicio';
+                    $sql = 'EXEC camasVerUna_v2 @idCama = :idCama, @idServicio = :idServicio';
                     $db = getConeccionCAB();
                     $stmt = $db->prepare($sql);
                     $stmt->bindParam('idCama',$idCama);
@@ -1088,6 +1088,36 @@ class TableroCamasController
                         //     }
                         $c->autEnfermeriaPorDni = $cama->autEnfermeriaPorDni;
                         $c->autEnfermeriaPorNombre = $cama->autEnfermeriaPorNombre;
+
+                        if($cama->idEstado == 6){ // si está reservada
+                            $c->idReserva =$cama->idReserva;
+                            $c->reservaFecha = ($cama->fechaReserva <> '') ? date_format(date_create($cama->fechaReserva), 'd-m-Y H:i:s') : '';
+                            $c->reservaMotivo =$cama->reservaMotivo;
+                            $c->reservadaPorDni =$cama->reservadaPorDni;
+                            $c->reservadaPorNombre =$cama->reservadaPorNombre;
+                            $c->reservaFechaCancelada = ($cama->reservaFechaCancelada <> '') ? date_format(date_create($cama->reservaFechaCancelada), 'd-m-Y H:i:s') : '';
+                            $c->reservaCanceladaPorDni =$cama->reservaCanceladaPorDni;
+                            $c->reservaCanceladaPorNombre =$cama->reservaCanceladaPorNombre;
+                            $c->reservaPacienteDni =$cama->reservaPacienteDni;
+                            $c->reservaNombrePaciente =$cama->reservaNombrePaciente;
+                            $c->reservaidMotivoFinReserva =$cama->reservaidMotivoFinReserva;
+                            $c->reservaIdSolicitudCambio =$cama->reservaIdSolicitudCambio;
+                        }else{
+                            $c->idReserva = 0;
+                            $c->reservaFecha = '';
+                            $c->reservaMotivo = '';
+                            $c->reservadaPorDni = '';
+                            $c->reservadaPorNombre = '';
+                            $c->reservaFechaCancelada = '';
+                            $c->reservaCanceladaPorDni = '';
+                            $c->reservaCanceladaPorNombre = '';
+                            $c->reservaPacienteDni = '';
+                            $c->reservaNombrePaciente = '';
+                            $c->reservaidMotivoFinReserva = 0;
+                            $c->reservaIdSolicitudCambio = 0;
+                        }
+                    
+
                         
                         array_push($datos,$c);
                         unset($c);
@@ -1644,7 +1674,7 @@ class TableroCamasController
         }
     }
 
-    // CAMAS ACTUALIZAR ESTADOS
+    // CAMAS ALTA DEFINITIVA
     public function AltaDefinitiva(Request $request, Response $response, $args){
         /*
         Este método se ejecuta cuando el enfermero da el alta definitiva al paciente desde el Tablero de Camas.
@@ -1804,7 +1834,7 @@ class TableroCamasController
 
     // CAMAS ACTUALIZAR ESTADOS
     private function camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio){
-        // Esta función actualiza los estados de las camas de estas habitación y devuelve 1 si el proceso fue exitoso o 0 si hubo algún error.
+        // Esta función actualiza los estados de las camas de esta habitación y devuelve 1 si el proceso fue exitoso o 0 si hubo algún error.
 
         // 1- Obtengo los datos de las camas de esta habitación.
         require_once '../class/Markey.php';
@@ -1817,6 +1847,210 @@ class TableroCamasController
 
             foreach($camas as $cama){
                 // 3- Verifico que la cama esté disponible, en reparación o en limpieza. Si la cama tiene otro estado no lo cambio
+                if(($cama->id_estado == 1) or ($cama->id_estado == 3) or ($cama->id_estado == 4)){
+                    // guardo el estado actual de la cama
+                    $estadoActual = $cama->id_estado;
+
+                    // verifico si la cama está
+                    //  - en aislamiento
+                    //  - si hay tareas de reparación que bloquean la habitación
+                    //  - si hay tareas de reparación que bloquean la cama.
+                    //  - si está limpia o no.                            
+                    
+                    // busco el dato de aislamiento en la tabla local
+                    $sql = 'EXEC camasVerUna @idCama = '.$cama->id_cama.', @idServicio = '.$idServicio;
+                    $stmt = getConeccionCAB()->query($sql);
+                    $datCam = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                    foreach ($datCam as $cam) {
+                        $camaEnAislamiento          = $cam->camaEnAislamiento;
+                        $tareasBloqueanHabitacion   = $cam->tareasBloqueanHabitacion;
+                        $tareasBloqueanCama         = $cam->tareasBloqueanCama;
+                        $limpia                     = $cam->limpia;
+
+                        
+                    }     
+                    
+
+                    if($camaEnAislamiento == 1){  // si la cama está en aislamiento
+                        $nuevoEstado = 4; // Limpieza
+                        if($estadoActual <> $nuevoEstado){
+                            if($cama->tipocama == 'F'){ // es una cama física
+                                // CREO LA TAREA DE LIMPIEZA, ENVIO UNA ALERTA y registro el evento en la bitácora de la cama.
+                                // si en la cama ya existe una tarea de limpieza sin finalizar, no hace nada.
+                                crearTareaLimpieza($cama->id_cama, $dni, $nombreUsuario, $idServicio); // función definida en src/Common/helpers.php
+                            }
+                        }
+                    }else{  // la cama no está en aislamiento
+                        // verifico si en esta cama hay tareas de reparación que bloquean la habitación.
+                        if($tareasBloqueanHabitacion == 1){
+                            $nuevoEstado = 3; // Reparación.
+                        }else{
+                            // verifico si hay tareas de reparación que bloqueen esa cama.
+                            if($tareasBloqueanCama == 1){
+                                $nuevoEstado = 3; //Reparación.
+                            }else{
+                                if($limpia == 1){
+                                    $nuevoEstado = 1; // Disponible.
+                                    
+                                    if($estadoActual <> $nuevoEstado){
+                                        // crear alerta de cama disponible (se muestra en el tablero de camas.)
+                                        // la alerta se creará solo si hay algún servicio que atienda ese tipo de alertas.
+                                        $sql = 'declare @mensaje varchar(255)
+                                                EXEC alertaNueva '.$cama->id_cama.', 13, @mensaje = @mensaje OUTPUT';
+                                        $stmt = getConeccionCAB()->query($sql);                                                                                                        
+                                    }
+                                }else{
+                                    $nuevoEstado = 4; // Limpieza
+                                    if($estadoActual <> $nuevoEstado){
+                                        if($cama->tipocama == 'F'){
+                                            // Creo la tarea de limpieza y envio la alerta
+                                            crearTareaLimpieza($cama->id_cama, $dni, $nombreUsuario, $idServicio); // función definida en src/Common/helpers.php
+                                            // $datos = array('estado' => 200, 'mensaje' => 'crearTareaLimpieza. TipoCama: '. $cama->tipocama.'id_cama: '.$cama->id_cama.' dni: '.$dni.' nombreUsuario: '.$nombreUsuario.' idServicio: '.$idServicio);
+                                            // $response->getBody()->write(json_encode($datos));
+                                            // return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+                                            
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+
+                    // ACTUALIZO EL ESTADO DE LA CAMA EN MARKEY SOLO SI EL NUEVO ESTADO ES DISTINTO AL ESTADO ACTUAL.
+                    if($estadoActual <> $nuevoEstado){                                    
+                        // si la cama es virtual solo puedo asignarle el estado disponible
+                        if($cama->tipocama == 'V'){
+                            // llamo al servicio de Markey para cambiar el estado de la cama a disponible
+                            if($datosCamas->cambiarEstado($cama->id_cama, 1) == 1){
+                                
+
+                                // limpio las alertas históricas de la cama
+                                limpiarAlertasHistoriasCama($cama->id_cama); // función definida en src/Common/helpers.php
+                            }
+                        }else{
+                            // llamo al servicio de Markey para cambiar el estado de la cama a $nuevo_estado
+                            if($datosCamas->cambiarEstado($cama->id_cama, $nuevoEstado) == 1){
+
+                                // si la cama pasa a disponible, limpio el historial de alertas.
+                                if($nuevoEstado == 1){
+                                    // limpio el historial de alertas
+                                    limpiarAlertasHistoriasCama($cama->id_cama); // función definida en src/Common/helpers.php
+                                    
+                                    // crear alerta de cama disponible para admisión
+                                    crearAlertaCamaDisponible($cama->id_cama); // función definida en src/Common/helpers.php
+                                }
+                            }
+                        }
+
+                        // registro el cambio de estado en la bitácora de la cama.
+                        bitacoraRegistrarCambioEstadoCama($cama->id_cama, 10, $dni, $nombreUsuario);
+                    }
+                }
+            }
+
+            // actualizo las camas en las tablas locales camasMarkey y camas para que queden sincronizadas con los datos de Markey.
+            // para esto vuelvo a llamar al servicio de Markey para obtener las camas de esta habitación con los datos actualizados.
+            
+            require_once '../class/Markey.php';
+            $datosCamas = new \Markey;
+            $camas = $datosCamas->getCamasHabitacion($idHabitacion);
+            foreach($camas as $cama){
+                // actualizo las tablas locales con los datos de Markey.
+                $sql = 'EXEC camaActualizarDatos 
+                            @idCama = :idCama,
+                            @cama = :cama,
+                            @idHabitacion = :idHabitacion,
+                            @habitacion = :habitacion,
+                            @piso = :piso,
+                            @pisoTexto = :pisoTexto,
+                            @tipoCama = :tipoCama,
+                            @idEstado = :idEstado,
+                            @estado = :estado,
+                            @paciCodigo = :paciCodigo,
+                            @nombrePaciente = :nombrePaciente,
+                            @apellidoPaciente = :apellidoPaciente,
+                            @tdocCodigo = :tdocCodigo,
+                            @nroDocumento = :nroDocumento,
+                            @sexo = :sexo,
+                            @idInternacion = :idInternacion,
+                            @fechaIngresoInstitucion = :fechaIngresoInstitucion,
+                            @fechaIngresoCama = :fechaIngresoCama,
+                            @cobertura = :cobertura,
+                            @fantasia = :fantasia,
+                            @plan = :plan,
+                            @nroAfiliado = :nroAfiliado,
+                            @fechaAltaMedica = :fechaAltaMedica,
+                            @profesionalAlta = :profesionalAlta,
+                            @camaEnAislamiento = :camaEnAislamiento,
+                            @observaciones = :observaciones,
+                            @fotoPaciente = :fotoPaciente,
+                            @procedimientosNoCumplidos = :procedimientosNoCumplidos,
+                            @medicacionNoProgramada = :medicacionNoProgramada,
+                            @medicacionNoAplicada = :medicacionNoAplicada,
+                            @tipoAltaMedica = :tipoAltaMedica,
+                            @acompanante = :acompanante,
+                            @observacionesAcompanante = :observacionesAcompanante';
+                $db = getConeccionCAB();
+                $stmt = $db->prepare($sql);
+                $stmt->bindParam('idCama',$cama->id_cama);
+                $stmt->bindParam('cama',$cama->cama);
+                $stmt->bindParam('idHabitacion',$cama->id_habitacion);
+                $stmt->bindParam('habitacion',$cama->habitacion);
+                $stmt->bindParam('piso',$cama->piso);
+                $stmt->bindParam('pisoTexto',$cama->piso_texto);
+                $stmt->bindParam('tipoCama',$cama->tipo_cama);
+                $stmt->bindParam('idEstado',$cama->id_estado);
+                $stmt->bindParam('estado',$cama->estado);
+                $stmt->bindParam('paciCodigo',$cama->paci_codigo);
+                $stmt->bindParam('nombrePaciente',$cama->nombre_paciente);
+                $stmt->bindParam('apellidoPaciente',$cama->apellido_paciente);
+                $stmt->bindParam('tdocCodigo',$cama->tdoc_codigo);
+                $stmt->bindParam('nroDocumento',$cama->nro_documento);
+                $stmt->bindParam('sexo',$cama->sexo);
+                $stmt->bindParam('idInternacion',$cama->id_internacion);
+                $stmt->bindParam('fechaIngresoInstitucion',$cama->fecha_ingreso_institucion);
+                $stmt->bindParam('fechaIngresoCama',$cama->fecha_ingreso_cama);
+                $stmt->bindParam('cobertura',$cama->cobertura);
+                $stmt->bindParam('fantasia',$cama->fantasia);
+                $stmt->bindParam('plan',$cama->plan);
+                $stmt->bindParam('nroAfiliado',$cama->nro_afiliado);
+                $stmt->bindParam('fechaAltaMedica',$cama->fecha_alta_medica);
+                $stmt->bindParam('profesionalAlta',$cama->profesional_alta);
+                $stmt->bindParam('camaEnAislamiento',$cama->cama_en_aislamiento);
+                $stmt->bindParam('observaciones',$cama->observaciones);
+                $stmt->bindParam('fotoPaciente',$cama->foto_paciente);
+                $stmt->bindParam('procedimientosNoCumplidos',$cama->procedimientos_no_cumplidos);
+                $stmt->bindParam('medicacionNoProgramada',$cama->medicacion_no_programada);
+                $stmt->bindParam('medicacionNoAplicada',$cama->medicacion_no_aplicada);
+                $stmt->bindParam('tipoAltaMedica',$cama->tipo_alta_medica);
+                $stmt->bindParam('acompanante',$cama->acompanante);
+                $stmt->bindParam('observacionesAcompanante',$cama->observaciones_acompanante);
+                $stmt->execute();
+            }
+        }
+
+        
+        return 1; // proceso finalizado exitosamente.  
+            
+    }
+
+    // CAMAS ACTUALIZAR ESTADOS - VERSIÓN 2
+    private function camasActualizarEstados_v2($idHabitacion, $dni, $nombreUsuario, $idServicio){
+        // Esta función actualiza los estados de las camas de esta habitación y devuelve 1 si el proceso fue exitoso o 0 si hubo algún error.
+
+        // 1- Obtengo los datos de las camas de esta habitación.
+        $sql = 'EXEC camasHabitacion @idHabitacion = ' . $idHabitacion;
+        $stmt = getConeccionCAB()->query($sql);
+        $resCamasHab = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        
+        if(count($resCamasHab) == 0){
+            return 0; // no existe la habitación o no hay camas en la habitación indicada.
+        }else{
+            // Recorro los datos de esta habitación y actualizo el estado de cada cama.
+
+            foreach($resCamasHab as $cama){
+                // 3- Verifico que la cama esté disponible (1), en reparación (3) o en limpieza (4). Si la cama tiene otro estado no lo cambio
                 if(($cama->id_estado == 1) or ($cama->id_estado == 3) or ($cama->id_estado == 4)){
                     // guardo el estado actual de la cama
                     $estadoActual = $cama->id_estado;
@@ -4031,6 +4265,8 @@ class TableroCamasController
                     $t->idPrioridad         = (int)$tarea->idPrioridad;
                     $t->prioridad           = $tarea->prioridad;
                     $t->ticket              = $tarea->ticket;
+                    $t->urlRecibido         = 'http://10.99.8.107/soporte/index.php?d='.encriptar($tarea->ticket . '2');
+                    $t->urlEnviado          = 'http://10.99.8.107/soporte/index.php?d='.encriptar($tarea->ticket . '0');
 
                     // muestro el detalle del ticket.
                     $con = 'select JSON_ARRAYAGG(
@@ -4077,12 +4313,21 @@ class TableroCamasController
 
     // INICIAR, FINALIZAR O CANCELAR UNA TAREA
     public function tareaIniciarFinalizarCancelar(Request $request, Response $response, $args){
+        /*
+        Esta función ejecuta la acción de iniciar, finalizar o cancelar una tarea de limpieza o de reparación.
+        1) modifica los datos en la base de datos CAB (tablas camasMarkey y camas)
+        2) modifica el estado del ticket asociado a la tarea en el caso de tareas de reparación
+        3) Si la tarea es finalizada o cancelada, actualiza el estado de las camas de la habitación ejecutando la función camasActualizarEstados
+
+        Si una tarea de limpieza (no iniciada) es cancelada, la cama pasa a estado disponible, a menos que haya tareas de reparación pendientes.
+        */
         $tokenAcceso    = $request->getHeader('TokenAcceso');
         $json           = $request->getBody();
         $datosTarea     = json_decode($json);
    
         $idTarea   = $datosTarea->idTarea ?? null;
         $idUsuario = $datosTarea->idUsuario ?? null;
+        $idServicio = $datosTarea->idServicio ?? null;
         $accion    = $datosTarea->accion ?? null;
         
         $error = 0;
@@ -4090,6 +4335,7 @@ class TableroCamasController
 
         if($idTarea == ''){ $error ++; }
         if($idUsuario == ''){ $error ++; } 
+        if($idServicio == ''){ $error ++; } 
         if($accion == ''){ $error ++; } 
         if($accion <> 'iniciar' && $accion <> 'finalizar' && $accion <> 'cancelar'){ $error ++; } 
         
@@ -4116,21 +4362,25 @@ class TableroCamasController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
-        // Ejecuto la acción: 1re. en la base de datos CAB y luego en las base de datos soporte (Tickets)
+        // PASO 1: Ejecuto la acción: 1ro. en la base de datos CAB (tablas camasMarkey y camas)
         try {
             $db = getConeccionCAB();
             
             $db->beginTransaction();
             
+            // Actualizo la tarea al estado correspondiente.
             $sql = 'EXEC tarea_iniciarFinalizarCancelar
                         @idTarea = :idTarea,
                         @idUsuario = :idUsuario,
+                        @idServicio = :idServicio, 
                         @accion = :accion';
+                        // envio el servicio solo para validar que sea un servicio existente y que el usuario está asociado a ese servicio.
                     
             
             $stmt = $db->prepare($sql);
             $stmt->bindParam(":idTarea", $idTarea);
             $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":idServicio", $idServicio);
             $stmt->bindParam(":accion", $accion);
             $stmt->execute();
             
@@ -4141,6 +4391,7 @@ class TableroCamasController
                 throw new \Exception('El procedimiento no retornó resultados');
             }
             
+            // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
             $estado = (int)$res[0]->estado;
             $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
             
@@ -4164,7 +4415,7 @@ class TableroCamasController
             
             // PASO 2: Cambio el estado del ticket según corresponda. (campo id_estado. 2= En proceso, 4= Resuelto, 10 = Cerrado)
             
-            if($idTicket > 1){
+            if($idTicket > 1){ 
                 // es una tarea de reparación y debo modificar el ticket correspodiente
                 $db2 = getConneccionMySql();                             
                 $sql2 = 'CALL actualizarTicket(:id_ticket, :accion)';
@@ -4188,9 +4439,33 @@ class TableroCamasController
                     $response->getBody()->write(json_encode($datos));
                     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
                 }
-            }            
+            } 
             
-            // Si todo está bien, confirma la transacción
+            // /*  
+            //     Si estoy finalizando una tarea de reparación y la reparación requiere limpieza posterior. Debo crear una tarea de limpieza y poner el campo limpia = 0
+            //     Si $idTicket > 1 es una tarea de reparación.
+            //     Para esto necesito obtener los datos de la tarea y la reparación realizada.
+            // */
+
+            // if($idTicket > 1){
+            //     // es una tarea de reparación, así que busco si la misma necesita limpieza posterior.
+            //     $sql4 = 'EXEC tareasCama_verUna @idTarea = :idTarea';
+            //     $stmt4 = $db->prepare($sql4);
+            //     $stmt4->bindParam(":idTarea", $idTarea);
+            //     $stmt4->execute();
+            //     $res4 = $stmt4->fetchAll(\PDO::FETCH_OBJ);
+                
+            //     $necesitaLimpieza = (int)$res4[0]->limpiezaPosterior;
+            //     if($necesitaLimpieza == 1){
+            //         // creo la tarea de limpieza y coloco la cama en estado 4 y el campo limpia = 0
+            //     }
+            // }
+
+
+            // Hasta acá todo se ejecutó bien, así que confirmo la transacción
+            $db->commit();
+            $db = null;
+
             switch ($accion) {
                 case 'iniciar':
                     $accionMensaje = 'inició';
@@ -4203,14 +4478,269 @@ class TableroCamasController
                     break;                
             }
 
-            $db->commit();
-            $db = null;
+            
+            // DE ACÁ EN ADALENTAO LO HAGO FUERA DE LA TRANSACCIÓN. Si ocurre un error no podré revertir lo hecho anteriormente.
+
+            // PASO 3: si la acción es finalizar o cancelar, actualizo el estado de las camas de esta habitación ejecutando la función camasActualizarEstado()
+            if(($accion == 'finalizar') or ($accion == 'cancelar')){
+                // obtengo los datos necesarios para ejecutar la función: idHabitacion, dni y nombreUsuario
+                $db3 = getConeccionCAB();                             
+                $sql3 = 'EXEC ObtenerDatosUsuarioYHabitacion @idTarea = :idTarea, @idUsuario = :idUsuario';
+                
+                $stmt3 = $db3->prepare($sql3);
+                $stmt3->bindParam(":idTarea", $idTarea);
+                $stmt3->bindParam(":idUsuario", $idUsuario);
+                $stmt3->execute();
+                $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
+            
+                
+                // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
+                $dni = $res3[0]->dni;
+                $nombreUsuario = $res3[0]->nombreUsuario;
+                $idHabitacion = $res3[0]->idHabitacion;
+                
+                if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {                   
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                } 
+            }
+
+            
             $datos = array(
                     'estado' => 1, 
                     'mensaje' => 'La tarea se '.$accionMensaje.' correctamente.'
                 );
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+             
+            
+            
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        }      
+    }
+    
+    public function tareaIniciarFinalizarCancelar_v2(Request $request, Response $response, $args){
+        /*
+        Esta función ejecuta la acción de iniciar, finalizar o cancelar una tarea de limpieza o de reparación.
+        1) modifica los datos en la base de datos CAB (tablas camasMarkey y camas)
+        2) modifica el estado del ticket asociado a la tarea en el caso de tareas de reparación
+        3) Si la tarea es finalizada o cancelada, actualiza el estado de las camas de la habitación ejecutando la función camasActualizarEstados
+        
+        IMPORTANTE:
+        1)  Si una tarea de limpieza (no iniciada) es cancelada, la cama pasa a estado disponible, a menos que haya tareas de reparación pendientes, en tal caso pasa a reparación.
+        2)  Si la tarea que estoy finalinzando es una tarea de reparación y la reparación necesita limpieza posterior, 
+            entonces debo crear una tarea de limpieza e indicar que la cama está sucia (limpia = 0).
+            Esto hará que la cama pase al estado reparación.
+            Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación.
+        */
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosTarea     = json_decode($json);
+   
+        $idTarea   = $datosTarea->idTarea ?? null;
+        $idUsuario = $datosTarea->idUsuario ?? null;
+        $idServicio = $datosTarea->idServicio ?? null;
+        $accion    = $datosTarea->accion ?? null;
+        
+        $error = 0;
+        $datos = array();
+
+        if($idTarea == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; } 
+        if($idServicio == ''){ $error ++; } 
+        if($accion == ''){ $error ++; } 
+        if($accion <> 'iniciar' && $accion <> 'finalizar' && $accion <> 'cancelar'){ $error ++; } 
+        
+
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // PASO 1: Ejecuto la acción: 1ro. en la base de datos CAB (tablas camasMarkey y camas)
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+            
+            // Actualizo la tarea al estado correspondiente.
+            $sql = 'EXEC tarea_iniciarFinalizarCancelar_v2
+                        @idTarea = :idTarea,
+                        @idUsuario = :idUsuario,
+                        @idServicio = :idServicio, 
+                        @accion = :accion';
+                        // envio el servicio solo para validar que sea un servicio existente y que el usuario está asociado a ese servicio.
+                    
+            
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idTarea", $idTarea);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":idServicio", $idServicio);
+            $stmt->bindParam(":accion", $accion);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
+            $estado             = (int)$res[0]->estado;
+            $mensaje            = $res[0]->mensaje ?? 'Sin mensaje';
+            $idTicket           = (int)$res[0]->idTicket;
+            $idTipoTarea        = (int)$res[0]->idTipoTarea;
+            $limpiezaPosterior  = (int)$res[0]->limpiezaPosterior;
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => $mensaje
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+                        
+            
+            // PASO 2: Cambio el estado del ticket según corresponda. (campo id_estado. 2= En proceso, 4= Resuelto, 10 = Cerrado)
+            
+            if($idTipoTarea == 2){ 
+                // es una tarea de reparación y debo modificar el ticket correspodiente
+                $db2 = getConneccionMySql();                             
+                $sql2 = 'CALL actualizarTicket(:id_ticket, :accion)';
+                
+                $stmt2 = $db2->prepare($sql2);
+                $stmt2->bindParam(":id_ticket", $idTicket);
+                $stmt2->bindParam(":accion", $accion);
+                $stmt2->execute();
+                $res2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
+
+                if($res2['estado'] == 0){
+                    // Ocurrió un error al actualizar el ticket
+                    $db->rollBack();
+                    $db = null;
+                    $db2 = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => $res2['mensaje']
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            } 
+            
+            /*  
+                Si la tarea que estoy finalinzando es una tarea de reparación y la reparación necesita limpieza posterior, 
+                entonces debo crear una tarea de limpieza e indicar que la cama está sucia (limpia = 0).
+                Esto hará que la cama pase al estado reparación.
+                Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación.
+            */
+
+            if(($accion == 'finalizar') && ($idTipoTarea == 2) && ($limpiezaPosterior == 1)){ 
+                // creo la tarea de limpieza y coloco el campo limpia = 0
+
+                //NOTA: cree un sp tarealimpiezaCrear_v2. Verificarlo y borrar el anterior.
+
+            }
+
+
+            // Hasta acá todo se ejecutó bien, así que confirmo la transacción
+            $db->commit();
+            $db = null;
+
+            switch ($accion) {
+                case 'iniciar':
+                    $accionMensaje = 'inició';
+                    break;
+                case 'finalizar':
+                    $accionMensaje = 'finalizó';
+                    break;
+                case 'cancelar':
+                    $accionMensaje = 'canceló';
+                    break;                
+            }
+
+            
+            // DE ACÁ EN ADALENTAO LO HAGO FUERA DE LA TRANSACCIÓN. Si ocurre un error no podré revertir lo hecho anteriormente.
+
+            // PASO 3: si la acción es finalizar o cancelar, actualizo el estado de las camas de esta habitación ejecutando la función camasActualizarEstado()
+            if(($accion == 'finalizar') or ($accion == 'cancelar')){
+                // obtengo los datos necesarios para ejecutar la función: idHabitacion, dni y nombreUsuario
+                $db3 = getConeccionCAB();                             
+                $sql3 = 'EXEC ObtenerDatosUsuarioYHabitacion @idTarea = :idTarea, @idUsuario = :idUsuario';
+                
+                $stmt3 = $db3->prepare($sql3);
+                $stmt3->bindParam(":idTarea", $idTarea);
+                $stmt3->bindParam(":idUsuario", $idUsuario);
+                $stmt3->execute();
+                $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
+            
+                
+                // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
+                $dni = $res3[0]->dni;
+                $nombreUsuario = $res3[0]->nombreUsuario;
+                $idHabitacion = $res3[0]->idHabitacion;
+                
+                if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {                   
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                } 
+            }
+
+            
+            $datos = array(
+                    'estado' => 1, 
+                    'mensaje' => 'La tarea se '.$accionMensaje.' correctamente.'
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+             
+            
+            
         } catch (\Exception $e) {
             // Cualquier otro error
             if ($db && $db->inTransaction()) {
