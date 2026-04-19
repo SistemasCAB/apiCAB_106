@@ -4625,6 +4625,7 @@ class TableroCamasController
             $idTicket           = (int)$res[0]->idTicket;
             $idTipoTarea        = (int)$res[0]->idTipoTarea;
             $limpiezaPosterior  = (int)$res[0]->limpiezaPosterior;
+            $inhabilitaHab      = (int)$res[0]->inhabilitaHab;
             
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -4673,14 +4674,39 @@ class TableroCamasController
                 Si la tarea que estoy finalinzando es una tarea de reparación y la reparación necesita limpieza posterior, 
                 entonces debo crear una tarea de limpieza e indicar que la cama está sucia (limpia = 0).
                 Esto hará que la cama pase al estado reparación.
-                Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación.
+                Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación. Esto se evalua en el SP tarealimpiezaHabitacionCrear
             */
 
             if(($accion == 'finalizar') && ($idTipoTarea == 2) && ($limpiezaPosterior == 1)){ 
-                // creo la tarea de limpieza y coloco el campo limpia = 0
-
-                //NOTA: cree un sp tarealimpiezaCrear_v2. Verificarlo y borrar el anterior.
-
+                $sql = 'EXEC tarealimpiezaHabitacionCrear
+                                @idCama = :idCama,
+                                @idUsuario = :idUsuario,
+                                @idServicioSolicita = :idServicioSolicita,
+                                @inhabilitaHab = :inhabilitaHab';                        
+                
+                $stmt = $db->prepare($sql);
+                $stmt->bindParam(":idCama", $idCama);
+                $stmt->bindParam(":idUsuario", $idUsuario);
+                $stmt->bindParam(":idServicioSolicita", $idServicio);
+                $stmt->bindParam(":inhabilitaHab", $inhabilitaHab);
+                $stmt->execute();
+                $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                $estado  = (int)$res[0]->estado;
+                $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+                
+                // Si el procedimiento devolvió error (estado = 0)
+                if ($estado === 0) {
+                    // Revierte la transacción
+                    $db->rollBack();
+                    $db = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => $mensaje
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
             }
 
 
