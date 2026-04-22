@@ -19,193 +19,193 @@ class TableroCamasController
 
         $tokenAcceso    = $request->getHeader('TokenAcceso');
 
-        if(isset($tokenAcceso[0])){
-            if(verificarToken($tokenAcceso[0]) === true){                
-                // acceso permitido
-                // 1) Obtengo las camas desde Markey
-                require_once '../class/Markey.php';
-                $markey = new \Markey; 
-                $camas = $markey->getCamasMarkey(); 
-                $cantCamasMarkey = count($camas);
-
-                $datos = array();
-
-                $sql = 'EXEC Markey_VerCamas';
-                $stmt = getConeccionCAB()->query($sql);
-                $camasCAB = $stmt->fetchAll(\PDO::FETCH_OBJ);
-
-                $cantCamasCab = count($camasCAB);
-
-                //var_dump($camasCAB);
-
-                $borrarTodo = 0;
-
-                // verifico si la cantidad de camas es la misma
-                if($cantCamasMarkey == $cantCamasCab){
-                    $arrayCM    = array();
-                    $arrayCAB   = array();
-
-                    foreach($camas as $cm){
-                        array_push($arrayCM,(int)$cm->id_cama);
-                    }
-
-                    foreach($camasCAB as $cab){
-                        array_push($arrayCAB,(int)$cab->idCama);
-                    }
-
-                    $diferencias = 0;
-
-                    // la cantidade camas es la misma pero verifico si son las mismas camas (verifico el idCama). Si hay diferencias, borro todo y cargo de nuevo
-                    $resultado = array_diff($arrayCM, $arrayCAB);
-                    if (count($resultado) > 0){
-                        $diferencias ++;
-                    }
-
-                    if($diferencias <> 0){
-                        $borrarTodo ++;
-                    }
-
-                }else{
-                    // borro todas las camas y las cargo de nuevo
-                    $borrarTodo ++;
-                }
-
-                // $datos = array('estado' => 0, 'cantidadCAmasMarkey' => $cantCamasMarkey, 'cantidadCamasCAB' => $cantCamasCab, 'borrarTodo' => $borrarTodo, 'diferencias' => $diferencias, 'resultado' => $resultado);
-                // $response->getBody()->write(json_encode($datos));
-                // return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-
-
-                if($borrarTodo > 0){
-                    // borrar todos los registros
-                    $sqlBorrar = 'EXEC Markey_CamasBorrarTodas';
-                    $db = getConeccionCAB();
-                    $stmt = $db->prepare($sqlBorrar);
-                    $stmt->execute();
-                }
-
-                
-                // Actualizo cada cama
-                try {
-                    foreach($camas as $camaMarkey){ //estas son las camas obtenidas desde Markey
-                        $sql = 'EXEC Markey_ActualizarCamas
-                                    @idCama = :idCama,
-                                    @cama = :cama,
-                                    @idHabitacion = :idHabitacion,
-                                    @habitacion = :habitacion,
-                                    @piso = :piso,
-                                    @pisoTexto = :pisoTexto,
-                                    @tipoCama = :tipoCama,
-                                    @idEstado = :idEstado,
-                                    @estado = :estado,
-                                    @color = :color,
-                                    @paciCodigo = :paciCodigo,
-                                    @nombrePaciente = :nombrePaciente,
-                                    @apellidoPaciente = :apellidoPaciente,
-                                    @tdocCodigo = :tdocCodigo,
-                                    @nroDocumento = :nroDocumento,
-                                    @sexo = :sexo,
-                                    @idInternacion = :idInternacion,
-                                    @fechaIngresoInstitucion = :fechaIngresoInstitucion,
-                                    @fechaIngresoCama = :fechaIngresoCama,
-                                    @cobertura = :cobertura,
-                                    @fantasia = :fantasia,
-                                    @plan = :plan,
-                                    @nroAfiliado = :nroAfiliado,
-                                    @fechaAltaMedica = :fechaAltaMedica,
-                                    @profesionalAlta = :profesionalAlta,
-                                    @observaciones = :observaciones,
-                                    @fotoPaciente = :fotoPaciente,
-                                    @procedimientosNoCumplidos = :procedimientosNoCumplidos,
-                                    @medicacionNoProgramada = :medicacionNoProgramada,
-                                    @medicacionNoAplicada  = :medicacionNoAplicada,
-                                    @tipoAltaMedica = :tipoAltaMedica,
-                                    @acompanante = :acompanante,
-                                    @observacionesAcompanante = :observacionesAcompanante';
-                        $db = getConeccionCAB();
-                        $stmt = $db->prepare($sql);
-                        $stmt->bindValue('idCama', (int)$camaMarkey->id_cama);
-                        $stmt->bindValue('cama', $camaMarkey->cama);
-                        $stmt->bindValue('idHabitacion', (int)$camaMarkey->id_habitacion);
-                        $stmt->bindValue('habitacion', $camaMarkey->habitacion);
-                        $stmt->bindValue('piso', $camaMarkey->piso);
-                        $stmt->bindValue('pisoTexto', $camaMarkey->piso_texto);
-                        $stmt->bindValue('tipoCama', $camaMarkey->tipocama);
-                        $stmt->bindValue('idEstado', (int)$camaMarkey->id_estado);
-                        $stmt->bindValue('estado', $camaMarkey->estado);
-                        $stmt->bindValue('color', $camaMarkey->color);
-                        $stmt->bindValue('paciCodigo', (int)$camaMarkey->Id_Paciente);
-                        $stmt->bindValue('nombrePaciente', $camaMarkey->nombre_paciente);
-                        $stmt->bindValue('apellidoPaciente', $camaMarkey->apellido_paciente);
-                        $stmt->bindValue('tdocCodigo', 1); // valor fijo
-                        $stmt->bindValue('nroDocumento', $camaMarkey->dni);
-                        $stmt->bindValue('sexo', $camaMarkey->sexo);
-                        $stmt->bindValue('idInternacion', (int)$camaMarkey->id_internacion);
-
-                        // Validar y bindear fecha_ingreso_institucion
-                        $fechaIngresoInstitucion = (isset($camaMarkey->fecha_ingreso_institucion) && trim($camaMarkey->fecha_ingreso_institucion) !== '') ? trim($camaMarkey->fecha_ingreso_institucion) : null;
-                        if ($fechaIngresoInstitucion === null) {
-                            $stmt->bindValue('fechaIngresoInstitucion', null, \PDO::PARAM_NULL);
-                        } else {
-                            $stmt->bindValue('fechaIngresoInstitucion', $fechaIngresoInstitucion);
-                        }
-
-                        // Validar y bindear fecha_ingreso_cama
-                        $fechaIngresoCama = (isset($camaMarkey->fecha_ingreso_cama) && trim($camaMarkey->fecha_ingreso_cama) !== '') ? trim($camaMarkey->fecha_ingreso_cama) : null;
-                        if ($fechaIngresoCama === null) {
-                            $stmt->bindValue('fechaIngresoCama', null, \PDO::PARAM_NULL);
-                        } else {
-                            $stmt->bindValue('fechaIngresoCama', $fechaIngresoCama);
-                        }
-
-                        $stmt->bindValue('cobertura', $camaMarkey->cobertura);
-                        $stmt->bindValue('fantasia', $camaMarkey->fantasia);
-                        $stmt->bindValue('plan', $camaMarkey->plan);
-                        $stmt->bindValue('nroAfiliado', $camaMarkey->nro_afiliado);
-
-                        // Validar y bindear fecha_alta_medica
-                        $fechaAltaMedica = (isset($camaMarkey->fecha_alta_medica) && trim($camaMarkey->fecha_alta_medica) !== '') ? trim($camaMarkey->fecha_alta_medica) : null;
-                        if ($fechaAltaMedica === null) {
-                            $stmt->bindValue('fechaAltaMedica', null, \PDO::PARAM_NULL);
-                        } else {
-                            $stmt->bindValue('fechaAltaMedica', $fechaAltaMedica);
-                        }
-
-                        $stmt->bindValue('profesionalAlta', $camaMarkey->profesional_alta);
-                        $stmt->bindValue('observaciones', $camaMarkey->observaciones);
-                        $stmt->bindValue('fotoPaciente', $camaMarkey->foto_paciente);
-                        $stmt->bindValue('procedimientosNoCumplidos', (int)$camaMarkey->procedimientos_no_cumplidos);
-                        $stmt->bindValue('medicacionNoProgramada', (int)$camaMarkey->medicacion_no_programada);
-                        $stmt->bindValue('medicacionNoAplicada', (int)$camaMarkey->medicacion_no_aplicada);
-                        $stmt->bindValue('tipoAltaMedica', $camaMarkey->tipo_alta_medica);
-                        $stmt->bindValue('acompanante', $camaMarkey->acompanante);
-                        $stmt->bindValue('observacionesAcompanante', $camaMarkey->observaciones_acompanante);
-                        $stmt->execute();
-                    }
-
-                    $datos = array('estado' => 1, 'mensaje' => 'Camas actualizadas.');
-                    $response->getBody()->write(json_encode($datos));
-                    return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-                } catch(\PDOException $e) {
-                    $datos = array(
-                        'estado' => 0,
-                        'mensaje' => 'Error al actualizar camas: ' . $e->getMessage(),
-                        'error_code' => $e->getCode()
-                    );
-                    $response->getBody()->write(json_encode($datos));
-                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-                }
-            }else{
-                // acceso denegado
-                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-                $response->getBody()->write(json_encode($datos));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-            }
-        }else{
+        if(!isset($tokenAcceso[0])){
             //acceso denegado. No envió el token de acceso
             $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
+
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        // acceso permitido
+        // 1) Obtengo las camas desde Markey
+        require_once '../class/Markey.php';
+        $markey = new \Markey; 
+        $camas = $markey->getCamasMarkey(); 
+        $cantCamasMarkey = count($camas);
+
+        $datos = array();
+
+        $sql = 'EXEC Markey_VerCamas';
+        $stmt = getConeccionCAB()->query($sql);
+        $camasCAB = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+        $cantCamasCab = count($camasCAB);
+
+        //var_dump($camasCAB);
+
+        $borrarTodo = 0;
+
+        // verifico si la cantidad de camas es la misma
+        if($cantCamasMarkey == $cantCamasCab){
+            $arrayCM    = array();
+            $arrayCAB   = array();
+
+            foreach($camas as $cm){
+                array_push($arrayCM,(int)$cm->id_cama);
+            }
+
+            foreach($camasCAB as $cab){
+                array_push($arrayCAB,(int)$cab->idCama);
+            }
+
+            $diferencias = 0;
+
+            // la cantidad de camas es la misma pero verifico si son las mismas camas (verifico el idCama). Si hay diferencias, borro todo y cargo de nuevo
+            $resultado = array_diff($arrayCM, $arrayCAB);
+            if (count($resultado) > 0){
+                $diferencias ++;
+            }
+
+            if($diferencias <> 0){
+                $borrarTodo ++;
+            }
+        }else{
+            // borro todas las camas y las cargo de nuevo
+            $borrarTodo ++;
+        }
+
+        if($borrarTodo > 0){
+            // borrar todos los registros
+            $sqlBorrar = 'EXEC Markey_CamasBorrarTodas';
+            $db = getConeccionCAB();
+            $stmt = $db->prepare($sqlBorrar);
+            $stmt->execute();
+        }
+
+        
+        // Actualizo cada cama
+        try {
+            foreach($camas as $camaMarkey){ //estas son las camas obtenidas desde Markey
+                $sql = 'EXEC Markey_ActualizarCamas
+                            @idCama = :idCama,
+                            @cama = :cama,
+                            @idHabitacion = :idHabitacion,
+                            @habitacion = :habitacion,
+                            @piso = :piso,
+                            @pisoTexto = :pisoTexto,
+                            @tipoCama = :tipoCama,
+                            @idEstado = :idEstado,
+                            @estado = :estado,
+                            @color = :color,
+                            @paciCodigo = :paciCodigo,
+                            @nombrePaciente = :nombrePaciente,
+                            @apellidoPaciente = :apellidoPaciente,
+                            @tdocCodigo = :tdocCodigo,
+                            @nroDocumento = :nroDocumento,
+                            @sexo = :sexo,
+                            @idInternacion = :idInternacion,
+                            @fechaIngresoInstitucion = :fechaIngresoInstitucion,
+                            @fechaIngresoCama = :fechaIngresoCama,
+                            @cobertura = :cobertura,
+                            @fantasia = :fantasia,
+                            @plan = :plan,
+                            @nroAfiliado = :nroAfiliado,
+                            @fechaAltaMedica = :fechaAltaMedica,
+                            @profesionalAlta = :profesionalAlta,
+                            @observaciones = :observaciones,
+                            @fotoPaciente = :fotoPaciente,
+                            @procedimientosNoCumplidos = :procedimientosNoCumplidos,
+                            @medicacionNoProgramada = :medicacionNoProgramada,
+                            @medicacionNoAplicada  = :medicacionNoAplicada,
+                            @tipoAltaMedica = :tipoAltaMedica,
+                            @acompanante = :acompanante,
+                            @observacionesAcompanante = :observacionesAcompanante';
+                $db = getConeccionCAB();
+                $stmt = $db->prepare($sql);
+                $stmt->bindValue('idCama', (int)$camaMarkey->id_cama);
+                $stmt->bindValue('cama', $camaMarkey->cama);
+                $stmt->bindValue('idHabitacion', (int)$camaMarkey->id_habitacion);
+                $stmt->bindValue('habitacion', $camaMarkey->habitacion);
+                $stmt->bindValue('piso', $camaMarkey->piso);
+                $stmt->bindValue('pisoTexto', $camaMarkey->piso_texto);
+                $stmt->bindValue('tipoCama', $camaMarkey->tipocama);
+                $stmt->bindValue('idEstado', (int)$camaMarkey->id_estado);
+                $stmt->bindValue('estado', $camaMarkey->estado);
+                $stmt->bindValue('color', $camaMarkey->color);
+                $stmt->bindValue('paciCodigo', (int)$camaMarkey->Id_Paciente);
+                $stmt->bindValue('nombrePaciente', $camaMarkey->nombre_paciente);
+                $stmt->bindValue('apellidoPaciente', $camaMarkey->apellido_paciente);
+                $stmt->bindValue('tdocCodigo', 1); // valor fijo
+                $stmt->bindValue('nroDocumento', $camaMarkey->dni);
+                $stmt->bindValue('sexo', $camaMarkey->sexo);
+                $stmt->bindValue('idInternacion', (int)$camaMarkey->id_internacion);
+
+                // Validar y bindear fecha_ingreso_institucion
+                $fechaIngresoInstitucion = (isset($camaMarkey->fecha_ingreso_institucion) && trim($camaMarkey->fecha_ingreso_institucion) !== '') ? trim($camaMarkey->fecha_ingreso_institucion) : null;
+                if ($fechaIngresoInstitucion === null) {
+                    $stmt->bindValue('fechaIngresoInstitucion', null, \PDO::PARAM_NULL);
+                } else {
+                    $stmt->bindValue('fechaIngresoInstitucion', $fechaIngresoInstitucion);
+                }
+
+                // Validar y bindear fecha_ingreso_cama
+                $fechaIngresoCama = (isset($camaMarkey->fecha_ingreso_cama) && trim($camaMarkey->fecha_ingreso_cama) !== '') ? trim($camaMarkey->fecha_ingreso_cama) : null;
+                if ($fechaIngresoCama === null) {
+                    $stmt->bindValue('fechaIngresoCama', null, \PDO::PARAM_NULL);
+                } else {
+                    $stmt->bindValue('fechaIngresoCama', $fechaIngresoCama);
+                }
+
+                $stmt->bindValue('cobertura', $camaMarkey->cobertura);
+                $stmt->bindValue('fantasia', $camaMarkey->fantasia);
+                $stmt->bindValue('plan', $camaMarkey->plan);
+                $stmt->bindValue('nroAfiliado', $camaMarkey->nro_afiliado);
+
+                // Validar y bindear fecha_alta_medica
+                $fechaAltaMedica = (isset($camaMarkey->fecha_alta_medica) && trim($camaMarkey->fecha_alta_medica) !== '') ? trim($camaMarkey->fecha_alta_medica) : null;
+                
+                $valorFecha = trim($camaMarkey->fecha_alta_medica ?? '', " \t\n\r\0\x0B\xA0");
+                $fechaAltaMedica = ($valorFecha !== '') ? $valorFecha : null;
+
+                if ($fechaAltaMedica === null) {
+                    $stmt->bindValue('fechaAltaMedica', null, \PDO::PARAM_NULL);
+                } else {
+                    $stmt->bindValue('fechaAltaMedica', $fechaAltaMedica);
+                }
+
+                $stmt->bindValue('profesionalAlta', $camaMarkey->profesional_alta);
+                $stmt->bindValue('observaciones', $camaMarkey->observaciones);
+                $stmt->bindValue('fotoPaciente', $camaMarkey->foto_paciente);
+                $stmt->bindValue('procedimientosNoCumplidos', (int)$camaMarkey->procedimientos_no_cumplidos);
+                $stmt->bindValue('medicacionNoProgramada', (int)$camaMarkey->medicacion_no_programada);
+                $stmt->bindValue('medicacionNoAplicada', (int)$camaMarkey->medicacion_no_aplicada);
+                $stmt->bindValue('tipoAltaMedica', $camaMarkey->tipo_alta_medica);
+                $stmt->bindValue('acompanante', $camaMarkey->acompanante);
+                $stmt->bindValue('observacionesAcompanante', $camaMarkey->observaciones_acompanante);
+                $stmt->execute();
+            }
+
+            $datos = array('estado' => 1, 'mensaje' => 'Camas actualizadas.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => 'Error al actualizar camas: ' . $e->getMessage(),
+                'error_code' => $e->getCode()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+        
+        
     }
 
     // VERSIÓN AUTORIZADA
@@ -1846,10 +1846,12 @@ class TableroCamasController
             // Recorro los datos de esta habitación y actualizo el estado de cada cama.
 
             foreach($camas as $cama){
+                // guardo el estado actual de la cama
+                $estadoActual = $cama->id_estado;
+                
                 // 3- Verifico que la cama esté disponible, en reparación o en limpieza. Si la cama tiene otro estado no lo cambio
                 if(($cama->id_estado == 1) or ($cama->id_estado == 3) or ($cama->id_estado == 4)){
-                    // guardo el estado actual de la cama
-                    $estadoActual = $cama->id_estado;
+                    
 
                     // verifico si la cama está
                     //  - en aislamiento
@@ -1866,9 +1868,7 @@ class TableroCamasController
                         $tareasBloqueanHabitacion   = $cam->tareasBloqueanHabitacion;
                         $tareasBloqueanCama         = $cam->tareasBloqueanCama;
                         $limpia                     = $cam->limpia;
-
-                        
-                    }     
+                    }
                     
 
                     if($camaEnAislamiento == 1){  // si la cama está en aislamiento
@@ -3716,14 +3716,11 @@ class TableroCamasController
                                 return $response->withHeader('Content-Type', 'application/json')->withStatus(409);
                             }
                         }
-                        
-                        
                     } catch(\PDOException $e) {
                         $datos = array('id_solicitud' => 0, 'mensaje' => $e->getMessage());
                         $response->getBody()->write(json_encode($datos));
                         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
                     }    
-
                 }else{
                     $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
                     $response->getBody()->write(json_encode($datos));
@@ -4590,6 +4587,9 @@ class TableroCamasController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
 
+
+
+
         // PASO 1: Ejecuto la acción: 1ro. en la base de datos CAB (tablas camasMarkey y camas)
         try {
             $db = getConeccionCAB();
@@ -4597,7 +4597,7 @@ class TableroCamasController
             $db->beginTransaction();
             
             // Actualizo la tarea al estado correspondiente.
-            $sql = 'EXEC tarea_iniciarFinalizarCancelar_v2
+            $sql = 'EXEC tarea_iniciarFinalizarCancelar_v4
                         @idTarea = :idTarea,
                         @idUsuario = :idUsuario,
                         @idServicio = :idServicio, 
@@ -4624,8 +4624,10 @@ class TableroCamasController
             $mensaje            = $res[0]->mensaje ?? 'Sin mensaje';
             $idTicket           = (int)$res[0]->idTicket;
             $idTipoTarea        = (int)$res[0]->idTipoTarea;
-            $limpiezaPosterior  = (int)$res[0]->limpiezaPosterior;
-            $inhabilitaHab      = (int)$res[0]->inhabilitaHab;
+            // el sp devuelve estas variables pero no las uso.
+            // $limpiezaPosterior  = (int)$res[0]->limpiezaPosterior;
+            // $inhabilitaHab      = (int)$res[0]->inhabilitaHab;
+            // $idCama             = (int)$res[0]->idCama;
             
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -4670,44 +4672,47 @@ class TableroCamasController
                 }
             } 
             
-            /*  
-                Si la tarea que estoy finalinzando es una tarea de reparación y la reparación necesita limpieza posterior, 
-                entonces debo crear una tarea de limpieza e indicar que la cama está sucia (limpia = 0).
-                Esto hará que la cama pase al estado reparación.
-                Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación. Esto se evalua en el SP tarealimpiezaHabitacionCrear
-            */
 
-            if(($accion == 'finalizar') && ($idTipoTarea == 2) && ($limpiezaPosterior == 1)){ 
-                $sql = 'EXEC tarealimpiezaHabitacionCrear
-                                @idCama = :idCama,
-                                @idUsuario = :idUsuario,
-                                @idServicioSolicita = :idServicioSolicita,
-                                @inhabilitaHab = :inhabilitaHab';                        
+            // pasé todo esto al procedimiento almacenado tarea_iniciarFinalizarCancelar_v3
+            // /*  
+            //     Si la tarea que estoy finalinzando es una tarea de reparación y la reparación necesita limpieza posterior, 
+            //     entonces debo crear una tarea de limpieza e indicar que la cama está sucia (limpia = 0).
+            //     Esto hará que la cama pase al estado reparación.
+            //     Si además la reparación afecta la habitación (campo inhabilitaHab) debo crear una tarea de limpieza para cada cama de la habitación. Esto se evalua en el SP tarealimpiezaHabitacionCrear
+            // */
+
+            // if(($accion == 'finalizar') && ($idTipoTarea == 2) && ($limpiezaPosterior == 1)){ 
+            //     //debug_log2('idCama: '.$idCama.' - idTarea: '.$idTarea.' - Accion: '.$accion. ' - idTipoTarea: '.$idTipoTarea. ' - LimpiezaPosterior: '. $limpiezaPosterior. ' - inhabilitaHab: ' . $inhabilitaHab. ' - idServicio:'. $idServicio);
+            //     $sql = 'EXEC tarealimpiezaHabitacionCrear
+            //                     @idCama = :idCama,
+            //                     @idUsuario = :idUsuario,
+            //                     @idServicioSolicita = :idServicioSolicita,
+            //                     @inhabilitaHab = :inhabilitaHab';                        
                 
-                $stmt = $db->prepare($sql);
-                $stmt->bindParam(":idCama", $idCama);
-                $stmt->bindParam(":idUsuario", $idUsuario);
-                $stmt->bindParam(":idServicioSolicita", $idServicio);
-                $stmt->bindParam(":inhabilitaHab", $inhabilitaHab);
-                $stmt->execute();
-                $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
-                $estado  = (int)$res[0]->estado;
-                $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            //     $stmt = $db->prepare($sql);
+            //     $stmt->bindParam(":idCama", $idCama);
+            //     $stmt->bindParam(":idUsuario", $idUsuario);
+            //     $stmt->bindParam(":idServicioSolicita", $idServicio);
+            //     $stmt->bindParam(":inhabilitaHab", $inhabilitaHab);
+            //     $stmt->execute();
+            //     $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            //     $estado  = (int)$res[0]->estado;
+            //     $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
                 
-                // Si el procedimiento devolvió error (estado = 0)
-                if ($estado === 0) {
-                    // Revierte la transacción
-                    $db->rollBack();
-                    $db = null;
+            //     // Si el procedimiento devolvió error (estado = 0)
+            //     if ($estado === 0) {
+            //         // Revierte la transacción
+            //         $db->rollBack();
+            //         $db = null;
                     
-                    $datos = array(
-                            'estado' => 0, 
-                            'mensaje' => $mensaje
-                        );
-                    $response->getBody()->write(json_encode($datos));
-                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-                }
-            }
+            //         $datos = array(
+            //                 'estado' => 0, 
+            //                 'mensaje' => $mensaje
+            //             );
+            //         $response->getBody()->write(json_encode($datos));
+            //         return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            //     }
+            // }
 
 
             // Hasta acá todo se ejecutó bien, así que confirmo la transacción
@@ -5008,6 +5013,22 @@ class TableroCamasController
         }
 
         
+    }
+
+//------------------------------------------------
+//                  PRUEBAS
+//------------------------------------------------    
+
+    // DEBUG
+    public function debug(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+
+        debug_log("Token", $tokenAcceso);
+        
+        $datos = array();
+        $datos = array('estado' => 1,'mensaje' => 'Debug OK');
+        $response->getBody()->write(json_encode($datos));
+        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);        
     }
 
 }

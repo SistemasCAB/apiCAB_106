@@ -69,7 +69,21 @@ function fechaHoraServidorSQL(){
 }
 
 function crearTareaLimpieza($idCama, $dni, $nombreUsuario, $idServicio){
-    $sql = "EXEC TareaLimpieza_crear @idCama = :idCama, @solicitadaPorDni = :dni, @solicitadaPorNombre = :nombreUsuario, @idServicioSolicita = :idServicio";
+    // $sql = "Declare @mensaje varchar(255);
+    //         EXEC TareaLimpiezaCrear_v2 
+    //             @idCama = :idCama, 
+    //             @solicitadaPorDni = :dni, 
+    //             @solicitadaPorNombre = :nombreUsuario, 
+    //             @idServicioSolicita = :idServicio, 
+    //             @mensaje = @mensaje OUTPUT";
+
+    $sql = "Declare @mensaje varchar(255);
+            EXEC TareaLimpiezaCrear 
+                @idCama = :idCama, 
+                @solicitadaPorDni = :dni, 
+                @solicitadaPorNombre = :nombreUsuario, 
+                @idServicioSolicita = :idServicio, 
+                @mensaje = @mensaje OUTPUT";
     $db = getConeccionCAB();
     $stmt = $db->prepare($sql);
     $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
@@ -131,4 +145,44 @@ function encriptar($string) {
 		$result.=$char;
 	}
 	return base64_encode($result);
+}
+
+function debug_log($message, $variable = null) {
+    $logsDir = __DIR__ . '\logs';
+    $logFile = $logsDir . '\debug.log';
+    
+    // Crear el directorio si no existe
+    if (!is_dir($logsDir)) {
+        mkdir($logsDir, 0755, true);
+    }
+    
+    $timestamp = date('Y-m-d H:i:s');
+    
+    $entry = "[$timestamp] $message";
+    
+    if ($variable !== null) {
+        $entry .= ": " . print_r($variable, true);
+    }
+    
+    $entry .= PHP_EOL;
+    
+    file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+}
+
+function debug_log2($message) {
+    $logsDir = __DIR__ . '\logs';
+    $logFile = $logsDir . '\debug.log';
+    
+    // Crear el directorio si no existe
+    if (!is_dir($logsDir)) {
+        mkdir($logsDir, 0755, true);
+    }
+    
+    $timestamp = date('Y-m-d H:i:s');
+    
+    $entry = "[$timestamp] $message";
+        
+    $entry .= PHP_EOL;
+    
+    file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
 }

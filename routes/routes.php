@@ -64,7 +64,7 @@ return function (App $app) {
     });
 
 
-    
+
 
     // --------------------------
     // VERSION 2
@@ -75,9 +75,9 @@ return function (App $app) {
         $group->group('/notificaciones', function ($g) {
             $g->get('/', '\App\V2\NotificacionesController_v2:verNotificaciones');
             $g->get('/{idNotificacion}', '\App\V2\NotificacionesController_v2:verUnaNotificacion');
-            $g->post('/leida','\App\V2\NotificacionesController_v2:marcarNotificacionLeida');
+            $g->post('/leida', '\App\V2\NotificacionesController_v2:marcarNotificacionLeida');
             $g->post('/enviar', '\App\V2\NotificacionesController_v2:enviarNotificacion');
-            $g->get('/{idNotificacion}/logLeida','\App\V2\NotificacionesController_v2:verLogLeida');
+            $g->get('/{idNotificacion}/logLeida', '\App\V2\NotificacionesController_v2:verLogLeida');
 
             // $g->post('/enviarEnfermero', '\App\NotificacionesController:enviarEnfermero');
             // $g->post('/enviarEnfermero_v2', '\App\NotificacionesController:enviarEnfermero_v2');
@@ -99,7 +99,7 @@ return function (App $app) {
         $group->group('/dispositivos', function ($g) {
             $g->get('/validar', '\App\V2\DispositivosController_v2:validarDispositivo');
             $g->post('/registrar', '\App\V2\DispositivosController_v2:registrarDispositivo');
-            $g->post('/cerrarSesionDispositivo', '\App\V2\DispositivosController_v2:cerrarSesionDispositivo');            
+            $g->post('/cerrarSesionDispositivo', '\App\V2\DispositivosController_v2:cerrarSesionDispositivo');
             $g->get('/sesionIniciada', '\App\V2\DispositivosController_v2:verificarSesionIniciada');
         });
 
@@ -128,46 +128,82 @@ return function (App $app) {
             $g->get('/camasDisponibles', '\App\V2\TableroCamasController:camasDisponibles');
             $g->post('/autorizarCambioCama', '\App\V2\TableroCamasController:autorizarCambioCama');
             $g->post('/noAutorizarCambioCama', '\App\V2\TableroCamasController:noAutorizarCambioCama');
-            $g->post('/camasCambiosRegistrar','\App\V2\TableroCamasController:camasCambiosRegistrar');
-            $g->get('/camasCambiosPendientes','\App\V2\TableroCamasController:camasCambiosPendientes');
+            $g->post('/camasCambiosRegistrar', '\App\V2\TableroCamasController:camasCambiosRegistrar');
+            $g->get('/camasCambiosPendientes', '\App\V2\TableroCamasController:camasCambiosPendientes');
             $g->get('/motivosCambioCama', '\App\V2\TableroCamasController:verMotivosCambioCama');
             $g->get('/buscarSolicitudCambioCama', '\App\V2\TableroCamasController:buscarSolicitudCambioCama');
-            $g->get('/pacientesHabitacion','\App\V2\TableroCamasController:pacientesHabitacion');
-            $g->post('/camasCambiosPendientesAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesAutorizar');
-            $g->post('/camasCambiosPendientesNoAutorizar','\App\V2\TableroCamasController:camasCambiosPendientesNoAutorizar');
+            $g->get('/pacientesHabitacion', '\App\V2\TableroCamasController:pacientesHabitacion');
+            $g->post('/camasCambiosPendientesAutorizar', '\App\V2\TableroCamasController:camasCambiosPendientesAutorizar');
+            $g->post('/camasCambiosPendientesNoAutorizar', '\App\V2\TableroCamasController:camasCambiosPendientesNoAutorizar');
             $g->get('/camasDisponiblesAreaCerrada', '\App\V2\TableroCamasController:camasDisponiblesAreaCerrada');
             $g->post('/cambioCamaCrearSolicitudAreaCerrada', '\App\V2\TableroCamasController:cambioCamaCrearSolicitudAreaCerrada');
             $g->post('/ordenarCambioCama', '\App\V2\TableroCamasController:ordenarCambioCama');
-            
-            
+
+
             // ALERTAS           
             $g->post('/nuevaAlerta', '\App\V2\TableroCamasController:nuevaAlerta');
             $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
             $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
-            
+
             // AISLAMIENTOS
             $g->get('/aislamientosDisponibles/{idInternacion}', '\App\V2\TableroCamasController:obtenerAislamientosDisponibles');
             $g->post('/agregarAislamiento', '\App\V2\TableroCamasController:agregarAislamiento');
             $g->post('/finalizarAislamiento', '\App\V2\TableroCamasController:finalizarAislamiento');
-            
+
             // ALTAS
-            $g->get('/validarFechaAltaDefinitiva', '\App\V2\TableroCamasController:validarFechaAltaDefinitiva');           
-            $g->post('/altaDefinitiva','\App\V2\TableroCamasController:AltaDefinitiva');
-            $g->get('/tiposAltasMedicas','\App\V2\TableroCamasController:tiposAltasMedicas');
-            $g->post('/altaProbable','\App\V2\TableroCamasController:altaProbableCrear');
+            $g->get('/validarFechaAltaDefinitiva', '\App\V2\TableroCamasController:validarFechaAltaDefinitiva');
+            $g->post('/altaDefinitiva', '\App\V2\TableroCamasController:AltaDefinitiva');
+            $g->get('/tiposAltasMedicas', '\App\V2\TableroCamasController:tiposAltasMedicas');
+            $g->post('/altaProbable', '\App\V2\TableroCamasController:altaProbableCrear');
 
             // RESERVAS
-            $g->get('/reservas','\App\V2\TableroCamasController:reservasVerUna');
+            $g->get('/reservas', '\App\V2\TableroCamasController:reservasVerUna');
 
             // TAREAS
-            $g->get('/tareas','\App\V2\TableroCamasController:tareas');
-            $g->get('/tareasCama','\App\V2\TableroCamasController:tareasCama');
-            $g->get('/tareasCama/{idTarea}','\App\V2\TableroCamasController:tareasCama_VerUna');
-            $g->post('/tareaIniciarFinalizarCancelar','\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
+            $g->get('/tareas', '\App\V2\TableroCamasController:tareas');
+            $g->get('/tareasCama', '\App\V2\TableroCamasController:tareasCama');
+            $g->get('/tareasCama/{idTarea}', '\App\V2\TableroCamasController:tareasCama_VerUna');
+            $g->post('/tareaIniciarFinalizarCancelar', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
+            $g->post('/tareaIniciarFinalizarCancelar_v2', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar_v2');
             //$g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
 
             // TICKETS
-            $g->get('/tickets/{idTicket}','\App\V2\TableroCamasController:ticket_ver');
+            $g->get('/tickets/{idTicket}', '\App\V2\TableroCamasController:ticket_ver');
+
+            // PRUEBAS
+            $g->get('/debug', '\App\V2\TableroCamasController:debug');
         });
+
+        // ESTERILIZACION
+        $group->group('/esterilizacion', function ($g) {
+            // ARTICULOS
+            $g->get('/articulos', '\App\V2\EsterilizacionController:articulosVerTodos');
+            $g->get('/articulo', '\App\V2\EsterilizacionController:articuloVerUno');
+            $g->post('/articulo', '\App\V2\EsterilizacionController:articuloCrear');
+            $g->put('/articulo', '\App\V2\EsterilizacionController:articuloActualizar');
+            $g->delete('/articulo', '\App\V2\EsterilizacionController:articuloEliminar');
+
+            // PACKS
+            $g->get('/packs', '\App\V2\EsterilizacionController:packsVerTodos');
+            $g->get('/pack', '\App\V2\EsterilizacionController:packVerUno');
+            $g->post('/pack', '\App\V2\EsterilizacionController:packCrear');
+            $g->post('/pack/desde-default', '\App\V2\EsterilizacionController:packCrearDesdeDefault');
+            $g->post('/pack/clonar', '\App\V2\EsterilizacionController:packClonar');
+            $g->put('/pack', '\App\V2\EsterilizacionController:packActualizar');
+            $g->delete('/pack', '\App\V2\EsterilizacionController:packEliminar');
+
+            // PACKS DEFAULT
+            $g->get('/packs-default', '\App\V2\EsterilizacionController:packsDefaultVerTodos');
+            $g->get('/pack-default', '\App\V2\EsterilizacionController:packDefaultVerUno');
+            $g->post('/pack-default', '\App\V2\EsterilizacionController:packDefaultCrear');
+            $g->put('/pack-default', '\App\V2\EsterilizacionController:packDefaultActualizar');
+            $g->delete('/pack-default', '\App\V2\EsterilizacionController:packDefaultEliminar');
+
+            // ARTICULOS DE PACK (relacion)
+            $g->post('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloAgregar');
+            $g->put('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloActualizar');
+            $g->delete('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloEliminar');
+        });
+
     });
 };
