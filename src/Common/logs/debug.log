@@ -1,0 +1,29 @@
+[2026-04-23 20:10:17] ------------------------------
+[2026-04-23 20:10:17] tareaIniciarFinalizarCancelar - idTarea: 163 - idUsuario: 1 - idServicio: 3 - accion: cancelar
+[2026-04-23 20:10:17] Resultado de SP tarea_iniciarFinalizarCancelar - estado: 1 - mensaje: La tarea fue cancelada correctamente. - idTicket: 0 - idTipoTarea: 1 - idCama: 58
+[2026-04-23 20:10:17] Confirmando transacción
+[2026-04-23 20:10:18] Cama: 57 - Estado actual: 2
+[2026-04-23 20:10:18] Cama: 58 - Estado actual: 4
+[2026-04-23 20:10:18] Cama: 58 - CEA: 0 - TBH: 0 - TBC: 0 - Limpia: 1
+[2026-04-23 20:10:18] Cama: 58 - Nuevo Estado: 1
+[2026-04-23 20:10:18] Cama: 58 - Cama Física - cambiar estado en Markey a: 1
+[2026-04-23 20:10:18] Cama: 58 - limpiar alertas históricas y crear alerta de cama disponible
+[2026-04-23 20:10:18] Cama: 58 - registrar cambio de estado en bitácora. Evento: 10, DNI: 20764733, Usuario: RODRIGUEZ, JORGE LUIS
+[2026-04-23 20:10:18] Sincronizar tablas locales: idHabitacion = 46
+[2026-04-23 20:10:19] Error en tareaIniciarFinalizarCancelar: SQLSTATE[42000]: [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Error al convertir el tipo de datos nvarchar a datetime.
+[2026-04-23 20:19:11] ------------------------------
+[2026-04-23 20:19:11] tareaIniciarFinalizarCancelar - idTarea: 164 - idUsuario: 1 - idServicio: 3 - accion: cancelar
+[2026-04-23 20:19:11] Resultado de SP tarea_iniciarFinalizarCancelar - estado: 1 - mensaje: La tarea fue cancelada correctamente. - idTicket: 0 - idTipoTarea: 1 - idCama: 57
+[2026-04-23 20:19:11] Confirmando transacción
+[2026-04-23 20:19:12] Cama: 57 - Estado actual: 4
+[2026-04-23 20:19:12] Cama: 57 - CEA: 0 - TBH: 0 - TBC: 0 - Limpia: 1
+[2026-04-23 20:19:12] Cama: 57 - Nuevo Estado: 1
+[2026-04-23 20:19:12] Cama: 57 - Cama Física - cambiar estado en Markey a: 1
+[2026-04-23 20:19:12] Cama: 57 - limpiar alertas históricas y crear alerta de cama disponible
+[2026-04-23 20:19:12] Cama: 57 - registrar cambio de estado en bitácora. Evento: 10, DNI: 20764733, Usuario: RODRIGUEZ, JORGE LUIS
+[2026-04-23 20:19:12] Cama: 58 - Estado actual: 1
+[2026-04-23 20:19:12] Cama: 58 - CEA: 0 - TBH: 0 - TBC: 0 - Limpia: 1
+[2026-04-23 20:19:12] Cama: 58 - Nuevo Estado: 1
+[2026-04-23 20:19:12] Sincronizar tablas locales: idHabitacion = 46
+[2026-04-23 20:19:13] Sincronizar finalizada tablas locales: idHabitacion = 46
+[2026-04-23 20:19:13] Función camasActualizarEstados ejecutada correctamente: idCama: 57 - idHabitacion: 46 - dni: 20764733 - nombreUsuario: RODRIGUEZ, JORGE LUIS - idServicio: 3
