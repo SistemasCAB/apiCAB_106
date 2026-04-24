@@ -1141,6 +1141,106 @@ public function articuloCrear(Request $request, Response $response, $args)
         }
     }
 
+    // LOTES
+    public function loteCrear(Request $request, Response $response, $args)
+    {
+        $tokenAcceso = $request->getHeader('TokenAcceso');
+        $json = $request->getBody();
+        $datos = json_decode($json);
+
+        if (!isset($tokenAcceso[0]) || verificarToken($tokenAcceso[0]) === false) {
+            $datosRespuesta = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datosRespuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        $nombre = trim($datos->nombre ?? '');
+        $observaciones = trim($datos->observaciones ?? '');
+        $packs = $datos->packs ?? [];
+
+        if ($nombre === '' || empty($packs)) {
+            $datosRespuesta = array('estado' => 0, 'mensaje' => 'Nombre y packs son obligatorios.');
+            $response->getBody()->write(json_encode($datosRespuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        try {
+            $db = getConeccionCAB();
+            $db->beginTransaction();
+
+            $sqlLote = 'INSERT INTO dbo.esterilizacionLote (Nombre, Observaciones, FechaCreacion) OUTPUT INSERTED.Id VALUES (:nombre, :observaciones, GETDATE())';
+            $stmtLote = $db->prepare($sqlLote);
+            $stmtLote->bindParam(':nombre', $nombre);
+            $stmtLote->bindParam(':observaciones', $observaciones);
+            $stmtLote->execute();
+            $loteId = $stmtLote->fetchColumn();
+
+            foreach ($packs as $packEntrada) {
+                $packId = strval($packEntrada->packId ?? '');
+                $cantidad = intval($packEntrada->quantity ?? 1);
+                if ($packId === '' || $cantidad < 1) {
+                    continue;
+                }
+
+                $sqlPack = 'SELECT p.Id, p.Nombre
+                            FROM dbo.esterilizacionPacks p
+                            WHERE p.Id = :id';
+                $stmtPack = $db->prepare($sqlPack);
+                $stmtPack->bindParam(':id', $packId);
+                $stmtPack->execute();
+                $pack = $stmtPack->fetch(\PDO::FETCH_OBJ);
+                if (!$pack) {
+                    throw new \Exception('Pack no encontrado: ' . $packId);
+                }
+
+                $sqlInsertLotePack = 'INSERT INTO dbo.esterilizacionLotePack (LoteId, PackOriginalId, NombrePackSnapshot, Cantidad)
+                                      OUTPUT INSERTED.Id
+                                      VALUES (:loteId, :packId, :nombrePack, :cantidad)';
+                $stmtInsertLotePack = $db->prepare($sqlInsertLotePack);
+                $stmtInsertLotePack->bindParam(':loteId', $loteId);
+                $stmtInsertLotePack->bindParam(':packId', $packId);
+                $stmtInsertLotePack->bindParam(':nombrePack', $pack->Nombre);
+                $stmtInsertLotePack->bindParam(':cantidad', $cantidad);
+                $stmtInsertLotePack->execute();
+                $lotePackId = $stmtInsertLotePack->fetchColumn();
+
+                $sqlArticulos = 'SELECT pa.ArticuloId, pa.Cantidad, a.nombre as Nombre
+                                 FROM dbo.esterilizacionPackArticulos pa
+                                 INNER JOIN dbo.esterilizacionArticulos a ON a.Id = pa.ArticuloId
+                                 WHERE pa.PackId = :packId';
+                $stmtArticulos = $db->prepare($sqlArticulos);
+                $stmtArticulos->bindParam(':packId', $packId);
+                $stmtArticulos->execute();
+                $articulos = $stmtArticulos->fetchAll(\PDO::FETCH_OBJ);
+
+                foreach ($articulos as $articulo) {
+                    $sqlInsertArt = 'INSERT INTO dbo.esterilizacionLotePackArticulo (LotePackId, ArticuloOriginalId, NombreArticuloSnapshot, Cantidad)
+                                     VALUES (:lotePackId, :articuloId, :nombreArticulo, :cantidad)';
+                    $stmtInsertArt = $db->prepare($sqlInsertArt);
+                    $stmtInsertArt->bindParam(':lotePackId', $lotePackId);
+                    $stmtInsertArt->bindParam(':articuloId', $articulo->ArticuloId);
+                    $stmtInsertArt->bindParam(':nombreArticulo', $articulo->Nombre);
+                    $stmtInsertArt->bindParam(':cantidad', $articulo->Cantidad);
+                    $stmtInsertArt->execute();
+                }
+            }
+
+            $db->commit();
+            $db = null;
+
+            $datosRespuesta = array('estado' => 1, 'mensaje' => 'Lote creado correctamente.', 'id' => $loteId);
+            $response->getBody()->write(json_encode($datosRespuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Throwable $e) {
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            $datosRespuesta = array('estado' => 0, 'mensaje' => $e->getMessage());
+            $response->getBody()->write(json_encode($datosRespuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
     // PACKS DEFAULT (esterilizacionPacksDefault)
 
     // VER TODOS LOS PACKS DEFAULT

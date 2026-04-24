@@ -164,8 +164,7 @@ return function (App $app) {
             $g->get('/tareasCama', '\App\V2\TableroCamasController:tareasCama');
             $g->get('/tareasCama/{idTarea}', '\App\V2\TableroCamasController:tareasCama_VerUna');
             $g->post('/tareaIniciarFinalizarCancelar', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
-            $g->post('/tareaIniciarFinalizarCancelar_v2', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar_v2');
-            //$g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
+            $g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
 
             // TICKETS
             $g->get('/tickets/{idTicket}', '\App\V2\TableroCamasController:ticket_ver');
@@ -176,6 +175,9 @@ return function (App $app) {
 
         // ESTERILIZACION
         $group->group('/esterilizacion', function ($g) {
+            // LOTES
+            $g->post('/lote', '\App\V2\EsterilizacionController:loteCrear');
+
             // ARTICULOS
             $g->get('/articulos', '\App\V2\EsterilizacionController:articulosVerTodos');
             $g->get('/articulo', '\App\V2\EsterilizacionController:articuloVerUno');
@@ -204,6 +206,5 @@ return function (App $app) {
             $g->put('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloActualizar');
             $g->delete('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloEliminar');
         });
-
     });
 };
