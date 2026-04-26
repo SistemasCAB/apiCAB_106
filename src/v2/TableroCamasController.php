@@ -660,6 +660,70 @@ class TableroCamasController
         }
     }
 
+    // SERVICIOS - VER TODOS
+    public function serviciosUsuario(Request $request, Response $response, $args){
+        $tokenAcceso = $request->getHeader('TokenAcceso');    
+        $idUsuario   = $request->getQueryParams()['idUsuario'] ?? null;    
+
+        $error = 0;
+        $datos = array();
+
+        if($idUsuario == ''){ $error ++; }
+
+        if(!isset($tokenAcceso[0])){
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+            
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        if($error > 0){
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos o son insuficientes.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // acceso permitido
+        $sql = 'EXEC serviciosUsuario @idUsuario = :idUsuario';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("idUsuario", $idUsuario);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $servicio){
+                $s = new \stdClass();
+                $s->idServicio = (int)$servicio->idServicio;
+                $s->nombreServicio = $servicio->nombreServicio;
+                $s->idTipoInternacion = (int)$servicio->idTipoInternacion;
+                $s->cambioCamaAreaCerrada = (int)$servicio->cambioCamaAreaCerrada;
+                $s->gestionaCamas = (int)$servicio->gestionaCamas;
+                
+                array_push($datos,$s);
+                unset($s);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+        }
+
     // VER PERMISOS SOBRE UN MÓDULO DETERMINADO
     public function permisoModuloTablero_ver(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');
@@ -4828,6 +4892,117 @@ class TableroCamasController
         }      
     }
 
+    // CATEGORIAS DE REPARACIÓN Y REPARACIONES
+    public function categoriasReparaciones(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo la lista de reparacines y categorías de reparación
+        $sql = 'EXEC categoriasReparaciones_ver';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $cat){
+                $c = new \stdClass();
+                
+                $c->idCategoria  = (int)$cat->idCategoria;
+                $c->categoria    = $cat->categoria;
+                $c->reparaciones = $cat->reparaciones ? json_decode($cat->reparaciones) : null;
+
+                array_push($datos,$c);
+                unset($c);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
+    }
+
+
+
+
+
+
+
+
+    // VER TIPOS DE DOCUMENTOS
+    public function tiposDocumentos(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo los tipos de documentos
+        $sql = 'EXEC tiposDocumentos_ver';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $tdoc){
+                $t = new \stdClass();
+                $t->tdocCodigo = (int)$tdoc->tdocCodigo;
+                $t->tdocDescripcion = $tdoc->tdocDescripcion;
+                
+                array_push($datos,$t);
+                unset($t);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
     
     
 //------------------------------------------------

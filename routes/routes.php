@@ -115,10 +115,12 @@ return function (App $app) {
             $g->get('/version', '\App\V2\TableroCamasController:versionAutorizada');
             $g->get('/horaServidor', '\App\V2\TableroCamasController:horaServidor');
             $g->post('/login', '\App\V2\TableroCamasController:login');
+            $g->get('/tiposDocumentos', '\App\V2\TableroCamasController:tiposDocumentos');
 
             // SERVICIOS
             $g->get('/servicios', '\App\V2\TableroCamasController:serviciosVerTodos');
             $g->get('/serviciosVerUno', '\App\V2\TableroCamasController:serviciosVerUno');
+            $g->get('/serviciosUsuario', '\App\V2\TableroCamasController:serviciosUsuario');
             $g->get('/permisoModuloTablero_ver', '\App\V2\TableroCamasController:permisoModuloTablero_ver');
             $g->get('/permisosModulosTableroServicio', '\App\V2\TableroCamasController:permisosModulosTableroServicio');
 
@@ -165,6 +167,8 @@ return function (App $app) {
             $g->get('/tareasCama/{idTarea}', '\App\V2\TableroCamasController:tareasCama_VerUna');
             $g->post('/tareaIniciarFinalizarCancelar', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
             $g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
+            $g->get('/categoriasReparaciones','\App\V2\TableroCamasController:categoriasReparaciones');
+            
 
             // TICKETS
             $g->get('/tickets/{idTicket}', '\App\V2\TableroCamasController:ticket_ver');
