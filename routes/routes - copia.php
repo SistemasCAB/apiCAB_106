@@ -49,7 +49,6 @@ return function (App $app) {
         $group->get('/turnosIndicadores', '\App\ReportesController:turnosIndicadores');
         $group->get('/estudiosCardiologicosFacturados', '\App\ReportesController:estudiosCardiologicosFacturados');
         $group->get('/indicadoresconsultas', '\App\ReportesController:indicadoresConsultas');
-        $group->get('/pacienteUltimaAtencion', '\App\ReportesController:pacienteUltimaAtencion');
     });
 
     // CLINICA - funciones varias
@@ -176,30 +175,6 @@ return function (App $app) {
 
             // PRUEBAS
             $g->get('/debug', '\App\V2\TableroCamasController:debug');
-        });
-
-        // ABM USUARIOS
-        $group->group('/abmusuarios', function ($g) {
-            $g->post('/login', '\App\V2\AbmUsuariosController:login');
-
-            // USUARIOS
-            $g->get('/usuarios',           '\App\V2\AbmUsuariosController:usuariosVerTodos');
-            $g->post('/usuario',           '\App\V2\AbmUsuariosController:usuarioCrear');
-            $g->put('/usuario',            '\App\V2\AbmUsuariosController:usuarioActualizar');
-            $g->patch('/usuario/toggle',   '\App\V2\AbmUsuariosController:usuarioToggleActivo');
-            $g->delete('/usuario',         '\App\V2\AbmUsuariosController:usuarioEliminar');
-
-            // SERVICIOS (SECTORES)
-            $g->get('/servicios',          '\App\V2\AbmUsuariosController:serviciosVerTodos');
-            $g->post('/servicio',          '\App\V2\AbmUsuariosController:servicioCrear');
-            $g->put('/servicio',           '\App\V2\AbmUsuariosController:servicioActualizar');
-            $g->delete('/servicio',        '\App\V2\AbmUsuariosController:servicioEliminar');
-
-            // APLICACIONES
-            $g->get('/aplicaciones',       '\App\V2\AbmUsuariosController:aplicacionesVerTodos');
-            $g->post('/aplicacion',        '\App\V2\AbmUsuariosController:aplicacionCrear');
-            $g->put('/aplicacion',         '\App\V2\AbmUsuariosController:aplicacionActualizar');
-            $g->delete('/aplicacion',      '\App\V2\AbmUsuariosController:aplicacionEliminar');
         });
 
         // ESTERILIZACION

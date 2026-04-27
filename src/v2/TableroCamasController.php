@@ -4671,7 +4671,9 @@ class TableroCamasController
         $idReparacion   = $datosTarea->idReparacion ?? null;
         $detalle        = $datosTarea->detalle ?? null; // se usa en el ticket que se crea asociado a esta tarea de reparación.
 
-        
+        // debug_log2('------------------------------');
+        // debug_log2('tareaReparacionCrear - idCama: ' . $idCama . ' - idUsuario: ' . $idUsuario . ' - idServicio: ' . $idServicio . ' - idReparacion: ' . $idReparacion);
+        // debug_log2('detalle: ' . $detalle);
 
         $error = 0;
         $datos = array();
@@ -4947,6 +4949,60 @@ class TableroCamasController
         
     }
 
+    // CATEGORIAS DE REPARACIÓN Y REPARACIONES
+    public function reparaciones(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo la lista de reparacines y categorías de reparación
+        $sql = 'EXEC reparaciones_ver';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $cat){
+                $c = new \stdClass();
+                
+                $c->idCategoria  = (int)$cat->idCategoria;
+                $c->categoria    = $cat->categoria;
+                $c->reparaciones = $cat->reparaciones ? json_decode($cat->reparaciones) : null;
+
+                array_push($datos,$c);
+                unset($c);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
+    }
 
 
 

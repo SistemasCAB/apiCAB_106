@@ -80,6 +80,25 @@ function getConnectionINF5() {
     return $dbh;
 }
 
+function verificarToken($token){
+    //busco el token de acceso a la API almacenado en la tabla parámetros.
+    $con = 'EXEC sp_parametro_ver @nombre = \'tokenAcceso\'';
+    try {
+        $stmt = getConnection()->query($con);
+        //$stmt = getConnection()->query($con);
+        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        if($token === $res[0]->valor ){
+            // acceso permitido
+            return true;
+        }else{
+            // acceso denegado
+            return false;
+        }
+        $stmt = null;
+    } catch(\PDOException $e) {
+        return false;
+    }
+}
 
 
 class ReportesController
@@ -478,6 +497,78 @@ class ReportesController
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
+    }
+
+    // ULTIMA ATENCION DE UN PACIENTE EN MARKEY Y BIOCOM
+    public function pacienteUltimaAtencion(Request $request, Response $response, $args){
+        $tokenAcceso  = $request->getHeader('TokenAcceso');
+        $tdocCodigo   = $request->getQueryParams()['tdocCodigo'] ?? null;
+        $nroDocumento = $request->getQueryParams()['nroDocumento'] ?? null;
+        
+        $error = 0;
+        $datos = array();
+
+        if($tdocCodigo == ''){ $error ++; }
+        if($nroDocumento == ''){ $error ++; }
+
+        // verifico que recibió los parametros obligatorios
+        if($error > 0){
+            $datos = array('estado' => 0,'mensaje' => 'Faltan parámetros obligatorios.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo los datos
+        $sql = 'EXEC pacienteUltimaAtencion @tdocCodigo = :tdocCodigo, @nroDocumento = :nroDocumento';
+        try {
+            $db = getConnectionINF5();
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("tdocCodigo", $tdocCodigo);
+            $stmt->bindParam("nroDocumento", $nroDocumento);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $pac){
+                $c = new \stdClass();
+                $c->sistema  = $pac->sistema;
+                $c->ultimaAtencion    = $pac->fecha;
+                $c->paciente = $pac->paciente;
+                $c->tipoDocumento = $pac->tipoDocumento;
+                $c->nroDocumento = $pac->nroDocumento;
+                $c->hc = $pac->hc;
+
+                array_push($datos,$c);
+                unset($c);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
     }
 
 }
