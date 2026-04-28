@@ -161,6 +161,10 @@ return function (App $app) {
 
             // RESERVAS
             $g->get('/reservas', '\App\V2\TableroCamasController:reservasVerUna');
+            $g->post('/reservas', '\App\V2\TableroCamasController:reservaCrear');
+
+            // PACIENTES
+            $g->get('/paciente', '\App\V2\TableroCamasController:paciente');            
 
             // TAREAS
             $g->get('/tareas', '\App\V2\TableroCamasController:tareas');
@@ -169,6 +173,9 @@ return function (App $app) {
             $g->post('/tareaIniciarFinalizarCancelar', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
             $g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
             $g->get('/categoriasReparaciones','\App\V2\TableroCamasController:categoriasReparaciones');
+
+            // CIRUGIAS
+            $g->get('/cirugiasdeldia', '\App\V2\TableroCamasController:cirugiasdeldia');
             
 
             // TICKETS
@@ -234,6 +241,11 @@ return function (App $app) {
             $g->post('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloAgregar');
             $g->put('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloActualizar');
             $g->delete('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloEliminar');
+        });
+
+         // ARCHIVO
+        $group->group('/archivo', function ($g) {
+            $g->get('/pacienteultimaatencion/{hc}', '\App\V2\ArchivoController:pacienteUltimaAtencion');
         });
     });
 };

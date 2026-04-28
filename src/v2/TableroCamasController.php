@@ -3210,6 +3210,93 @@ class TableroCamasController
         }
     }
 
+    // RESERVAS CREAR
+    public function reservaCrear(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosReserva   = json_decode($json);
+   
+        $idCama             = $datosReserva->idCama ?? null;
+        $tdocCodigo         = $datosReserva->tdocCodigo ?? null;
+        $nroDocumento       = $datosReserva->nroDocumento ?? null;
+        $nombrePaciente     = $datosReserva->nombrePaciente ?? null;
+        $motivo             = $datosReserva->motivo ?? null;
+        $idUsuario          = $datosReserva->idUsuario ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idSolicitudCambio == ''){ $error ++; }
+        if($realizadoPorDni == ''){ $error ++; }
+        if($realizadoPorNombre == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+
+        
+        if(isset($tokenAcceso[0])){
+            if(verificarToken($tokenAcceso[0]) === true){                
+                // acceso permitido                
+
+                if ($error == 0) {
+                    $sql = 'DECLARE	@return_value int, @men varchar(255)
+                            EXEC @return_value = camasCambios_registrarCambio
+                                        @idSolicitudCambio = :idSolicitudCambio,
+                                        @realizadoPorDni = :realizadoPorDni,
+                                        @realizadoPorNombre = :realizadoPorNombre,
+                                        @idServicio = :idServicio,
+                                        @mensaje = @men OUTPUT
+                            
+                            SELECT	@return_value as estado, @men as mensaje';
+
+                    try {                        
+                        $db = getConeccionCAB();
+                        $stmt = $db->prepare($sql);
+                        $stmt->bindParam("idSolicitudCambio", $idSolicitudCambio);
+                        $stmt->bindParam("realizadoPorDni", $realizadoPorDni);
+                        $stmt->bindParam("realizadoPorNombre", $realizadoPorNombre);
+                        $stmt->bindParam("idServicio", $idServicio);
+                        $stmt->execute();
+                        $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                        $db = null;
+
+                        $datos = [
+                            'estado' => (int)$res[0]->estado,
+                            'mensaje' => $res[0]->mensaje
+                        ];
+
+                        if ($res[0]->estado == 1){
+                            $httpStatus = 200; 
+                        }else{
+                            $httpStatus = 500; 
+                        }
+
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus($httpStatus);
+                        
+                    } catch(\PDOException $e) {
+                        $datos = array('estado' => 500, 'mensaje' => $e->getMessage());
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }    
+
+                }else{
+                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+                }
+            }else{
+                // acceso denegado
+                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+            }
+        }else{
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+    }
+
     // CAMAS CAMBIOS - REGISTRAR
     public function camasCambiosRegistrar_v1(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');
@@ -5005,8 +5092,140 @@ class TableroCamasController
     }
 
 
+//------------------------------------------------
+//                  PACIENTES                
+//------------------------------------------------
 
+    // VER UN PACIENTE DE MARKEY
+    public function paciente(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $parametros     = $request->getQueryParams();
+        $tdocCodigo     = $parametros['tdocCodigo'] ?? null;        
+        $nroDocumento   = $parametros['nroDocumento'] ?? null;
+        $error = 0;
+        $datos = array();
 
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // verifico que recibí todos los parámetros
+        if($tdocCodigo == ''){ $error ++; }
+        if($nroDocumento == ''){ $error ++; }
+
+        if($error > 0){
+            $datos = array('estado' => 0,'mensaje' => 'Faltan parámetros obligatorios.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // busco el paciente en la base de datos de Markey. Accedo por el servidor 10.99.8.5
+        $sql = 'EXEC PacienteBuscar @tdocCodigo = :tdocCodigo, @documentoPaciente = :documentoPaciente';
+        try {
+            $db = getConeccionCAB05(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("tdocCodigo", $tdocCodigo);
+            $stmt->bindParam("documentoPaciente", $nroDocumento);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $pac){
+                $p = new \stdClass();
+                
+                $p->paciCodigo          = (int)$pac->persCodigo;
+                $p->apellido            = $pac->apellidoPaciente;
+                $p->nombre              = $pac->nombrePaciente;
+                $p->fechaNacimiento     = $pac->fechaNacimiento;
+                $p->persSexo            = $pac->persSexo;
+                $p->sexo                = $pac->sexo;
+                $p->tdocCodigo          = (int)$pac->tdocCodigo;
+                $p->tdocDescripcion     = $pac->tdocDescripcion;
+                $p->nroDocumento        = $pac->persNroDocumento;
+
+                array_push($datos,$p);
+                unset($p);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }    
+
+//------------------------------------------------
+//            CIRUGÍAS DEL DÍA                
+//------------------------------------------------
+
+    // VER LAS CIRUGÍAS DEL DÍA DESDE MARKEY
+    public function cirugiasdeldia(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');        
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // busco las cirugías del día
+        $sql = 'EXEC MKY_ObtenerCirugiasDelDia';
+        try {
+            $db = getConeccionCAB05(); 
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $cir){
+                $c = new \stdClass();
+                
+                $c->tdocCodigo      = $cir->tdocCodigo;
+                $c->nroDocumento    = $cir->nroDocumento;
+                $c->paciente        = $cir->paciente;
+                $c->cirujano        = $cir->cirujano;
+
+                array_push($datos,$c);
+                unset($c);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    } 
 
 
 

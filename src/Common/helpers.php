@@ -19,6 +19,21 @@ function getConeccionCAB() {
     return $dbh;
 }
 
+// Conexión a BD CAB en 10.99.8.5
+function getConeccionCAB05() {
+    $dbhost = $_ENV['DB_HOSTCAB05'];
+    $dbuser = $_ENV['DB_USERCAB05'];
+    $dbpass = $_ENV['DB_PASSCAB05'];
+    $dbname = $_ENV['DB_NAMECAB05'];
+    $dbh = new \PDO(
+        "sqlsrv:Server=$dbhost;Database=$dbname;Encrypt=yes;TrustServerCertificate=yes",
+        $dbuser,
+        $dbpass
+    );
+    $dbh->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+    return $dbh;
+}
+
 function getConneccionMySql() {
     $dbhost="10.99.8.107";
     $dbuser="root";
