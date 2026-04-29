@@ -162,6 +162,8 @@ return function (App $app) {
             // RESERVAS
             $g->get('/reservas', '\App\V2\TableroCamasController:reservasVerUna');
             $g->post('/reservas', '\App\V2\TableroCamasController:reservaCrear');
+            $g->patch('/reservas', '\App\V2\TableroCamasController:reservaCancelar');
+            
 
             // PACIENTES
             $g->get('/paciente', '\App\V2\TableroCamasController:paciente');            
@@ -247,5 +249,13 @@ return function (App $app) {
         $group->group('/archivo', function ($g) {
             $g->get('/pacienteultimaatencion/{hc}', '\App\V2\ArchivoController:pacienteUltimaAtencion');
         });
+
+        // ARCHIVO - Gestión de Historias Clínicas
+        $group->group('/archivo', function ($g) {
+            $g->post('/guardarDocumento', '\App\V2\ArchivoController:guardarDocumento');
+            $g->get('/reporteUnificado', '\App\V2\ArchivoController:reporteUnificado');
+            $g->get('/tiposProcesados', '\App\V2\ArchivoController:tiposProcesados');
+        });
+
     });
 };

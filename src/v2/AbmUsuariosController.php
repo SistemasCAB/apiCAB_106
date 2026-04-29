@@ -44,7 +44,7 @@ class AbmUsuariosController
     // Valida token + pertenencia al sector Sistemas. Devuelve Response en caso de error, null si ok.
     private function verificarTokenYSistemas(Request $request, Response $response, int &$idUsuario): ?Response
     {
-        $tokenAcceso   = $request->getHeader('TokenAcceso');
+        $tokenAcceso = $request->getHeader('TokenAcceso');
         $idUsuarioHeader = $request->getHeader('X-Id-Usuario');
 
         if (!isset($tokenAcceso[0]) || verificarToken($tokenAcceso[0]) === false) {
@@ -77,10 +77,18 @@ class AbmUsuariosController
         $idAplicacion = $datosLogin->idAplicacion ?? null;
 
         $error = 0;
-        if ($tdocCodigo == '') { $error++; }
-        if ($nroDocumento == '') { $error++; }
-        if ($clave == '') { $error++; }
-        if ($idAplicacion == '') { $error++; }
+        if ($tdocCodigo == '') {
+            $error++;
+        }
+        if ($nroDocumento == '') {
+            $error++;
+        }
+        if ($clave == '') {
+            $error++;
+        }
+        if ($idAplicacion == '') {
+            $error++;
+        }
 
         if (!isset($tokenAcceso[0]) || verificarToken($tokenAcceso[0]) === false) {
             return $this->jsonError($response, 'Acceso denegado.', 403);
@@ -166,10 +174,10 @@ class AbmUsuariosController
     {
         return $this->loginSistema($request, $response);
 
-        $json   = $request->getBody();
-        $datos  = json_decode($json);
+        $json = $request->getBody();
+        $datos = json_decode($json);
         $usuario = trim($datos->usuario ?? '');
-        $pass    = trim($datos->pass    ?? '');
+        $pass = trim($datos->pass ?? '');
 
         if (!$usuario || !$pass) {
             return $this->jsonError($response, 'Usuario y contraseña son requeridos.', 400);
@@ -226,15 +234,15 @@ class AbmUsuariosController
                 : bin2hex(random_bytes(32));
 
             return $this->jsonOk($response, [
-                'acceso'    => true,
-                'token'     => $token,
-                'usuario'   => [
+                'acceso' => true,
+                'token' => $token,
+                'usuario' => [
                     'idUsuario' => $u->idUsuario,
-                    'nombre'    => $u->nombre,
-                    'apellido'  => $u->apellido,
+                    'nombre' => $u->nombre,
+                    'apellido' => $u->apellido,
                 ],
                 'aplicacion' => ['idAplicacion' => 1, 'aplicacion' => 'ABM USUARIOS'],
-                'servicios'  => $servicios,
+                'servicios' => $servicios,
             ]);
 
         } catch (\PDOException $e) {
@@ -296,13 +304,13 @@ class AbmUsuariosController
             foreach ($usuarios as $u) {
                 $idStr = (string) $u->id;
                 $resultado[] = [
-                    'id'             => $idStr,
-                    'dni'            => $u->dni,
-                    'nombre'         => $u->nombre,
-                    'apellido'       => $u->apellido,
-                    'estado'         => (int) $u->estado,
-                    'sectorIds'      => $sectorMap[$idStr] ?? [],
-                    'applicationIds' => $appMap[$idStr]   ?? [],
+                    'id' => $idStr,
+                    'dni' => $u->dni,
+                    'nombre' => $u->nombre,
+                    'apellido' => $u->apellido,
+                    'estado' => (int) $u->estado,
+                    'sectorIds' => $sectorMap[$idStr] ?? [],
+                    'applicationIds' => $appMap[$idStr] ?? [],
                 ];
             }
 
@@ -316,14 +324,15 @@ class AbmUsuariosController
     public function usuarioCrear(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $datos         = json_decode($request->getBody());
-        $dni           = trim($datos->dni        ?? '');
-        $nombre        = trim($datos->nombre     ?? '');
-        $apellido      = trim($datos->apellido   ?? '');
-        $estado        = isset($datos->estado)   ? (int) $datos->estado : 1;
-        $sectorIds     = $datos->sectorIds       ?? [];
+        $datos = json_decode($request->getBody());
+        $dni = trim($datos->dni ?? '');
+        $nombre = trim($datos->nombre ?? '');
+        $apellido = trim($datos->apellido ?? '');
+        $estado = isset($datos->estado) ? (int) $datos->estado : 1;
+        $sectorIds = $datos->sectorIds ?? [];
         $applicationIds = $datos->applicationIds ?? [];
 
         if (!$dni || !$nombre || !$apellido) {
@@ -349,11 +358,11 @@ class AbmUsuariosController
                 'INSERT INTO dbo.usuarios (idUsuario, tdocCodigo, nroDocumento, nombre, apellido, activo)
                  VALUES (:id, 1, :dni, :nombre, :apellido, :activo)'
             );
-            $stmtU->bindParam(':id',      $nextId,   \PDO::PARAM_INT);
-            $stmtU->bindParam(':dni',     $dni);
-            $stmtU->bindParam(':nombre',  $nombre);
+            $stmtU->bindParam(':id', $nextId, \PDO::PARAM_INT);
+            $stmtU->bindParam(':dni', $dni);
+            $stmtU->bindParam(':nombre', $nombre);
             $stmtU->bindParam(':apellido', $apellido);
-            $stmtU->bindParam(':activo',  $estado,   \PDO::PARAM_INT);
+            $stmtU->bindParam(':activo', $estado, \PDO::PARAM_INT);
             $stmtU->execute();
 
             foreach ($sectorIds as $idServicio) {
@@ -367,9 +376,9 @@ class AbmUsuariosController
 
             $db = null;
             return $this->jsonOk($response, [
-                'estado'  => 1,
+                'estado' => 1,
                 'mensaje' => 'Usuario creado correctamente.',
-                'id'      => (string) $nextId,
+                'id' => (string) $nextId,
             ]);
 
         } catch (\PDOException $e) {
@@ -380,16 +389,17 @@ class AbmUsuariosController
     public function usuarioActualizar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $datos          = json_decode($request->getBody());
-        $id             = $datos->id             ?? null;
-        $dni            = trim($datos->dni        ?? '');
-        $nombre         = trim($datos->nombre     ?? '');
-        $apellido       = trim($datos->apellido   ?? '');
-        $estado         = isset($datos->estado)   ? (int) $datos->estado : null;
-        $sectorIds      = $datos->sectorIds       ?? null;
-        $applicationIds = $datos->applicationIds  ?? null;
+        $datos = json_decode($request->getBody());
+        $id = $datos->id ?? null;
+        $dni = trim($datos->dni ?? '');
+        $nombre = trim($datos->nombre ?? '');
+        $apellido = trim($datos->apellido ?? '');
+        $estado = isset($datos->estado) ? (int) $datos->estado : null;
+        $sectorIds = $datos->sectorIds ?? null;
+        $applicationIds = $datos->applicationIds ?? null;
 
         if (!$id || !$dni || !$nombre || !$apellido || $estado === null) {
             return $this->jsonError($response, 'Todos los campos son obligatorios.', 400);
@@ -403,25 +413,25 @@ class AbmUsuariosController
                  SET nroDocumento = :dni, nombre = :nombre, apellido = :apellido, activo = :activo
                  WHERE idUsuario = :id'
             );
-            $stmtU->bindParam(':dni',     $dni);
-            $stmtU->bindParam(':nombre',  $nombre);
+            $stmtU->bindParam(':dni', $dni);
+            $stmtU->bindParam(':nombre', $nombre);
             $stmtU->bindParam(':apellido', $apellido);
-            $stmtU->bindParam(':activo',  $estado,  \PDO::PARAM_INT);
-            $stmtU->bindParam(':id',      $id,      \PDO::PARAM_INT);
+            $stmtU->bindParam(':activo', $estado, \PDO::PARAM_INT);
+            $stmtU->bindParam(':id', $id, \PDO::PARAM_INT);
             $stmtU->execute();
 
             if ($sectorIds !== null) {
                 $db->prepare('DELETE FROM dbo.usuariosServicios WHERE idUsuario = :id')->execute([':id' => $id]);
                 foreach ($sectorIds as $idServicio) {
                     $db->prepare('INSERT INTO dbo.usuariosServicios (idUsuario, idServicio) VALUES (:u, :s)')
-                       ->execute([':u' => $id, ':s' => $idServicio]);
+                        ->execute([':u' => $id, ':s' => $idServicio]);
                 }
             }
             if ($applicationIds !== null) {
                 $db->prepare('DELETE FROM dbo.usuariosAplicaciones WHERE idUsuario = :id')->execute([':id' => $id]);
                 foreach ($applicationIds as $idAplicacion) {
                     $db->prepare('INSERT INTO dbo.usuariosAplicaciones (idUsuario, idAplicacion) VALUES (:u, :a)')
-                       ->execute([':u' => $id, ':a' => $idAplicacion]);
+                        ->execute([':u' => $id, ':a' => $idAplicacion]);
                 }
             }
 
@@ -436,10 +446,11 @@ class AbmUsuariosController
     public function usuarioToggleActivo(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $datos  = json_decode($request->getBody());
-        $id     = $datos->id     ?? null;
+        $datos = json_decode($request->getBody());
+        $id = $datos->id ?? null;
         $activo = isset($datos->activo) ? (int) $datos->activo : null;
 
         if (!$id || $activo === null) {
@@ -447,10 +458,10 @@ class AbmUsuariosController
         }
 
         try {
-            $db   = getConeccionCAB();
+            $db = getConeccionCAB();
             $stmt = $db->prepare('UPDATE dbo.usuarios SET activo = :activo WHERE idUsuario = :id');
             $stmt->bindParam(':activo', $activo, \PDO::PARAM_INT);
-            $stmt->bindParam(':id',     $id,     \PDO::PARAM_INT);
+            $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
             $stmt->execute();
             $db = null;
 
@@ -465,10 +476,12 @@ class AbmUsuariosController
     public function usuarioEliminar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
         $id = $request->getQueryParams()['id'] ?? null;
-        if (!$id) return $this->jsonError($response, 'ID de usuario requerido.', 400);
+        if (!$id)
+            return $this->jsonError($response, 'ID de usuario requerido.', 400);
 
         try {
             $db = getConeccionCAB();
@@ -493,7 +506,7 @@ class AbmUsuariosController
         }
 
         try {
-            $db   = getConeccionCAB();
+            $db = getConeccionCAB();
             $stmt = $db->prepare(
                 'SELECT CAST(idServicio as VARCHAR) as id, nombreServicio as nombre
                  FROM dbo.servicios
@@ -512,10 +525,18 @@ class AbmUsuariosController
     public function servicioCrear(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $nombre = trim(json_decode($request->getBody())->nombre ?? '');
-        if (!$nombre) return $this->jsonError($response, 'El nombre es obligatorio.', 400);
+        $datos = json_decode($request->getBody());
+        $nombre = trim($datos->nombre ?? '');
+        $idTipoInternacion = $datos->idTipoInternacion ?? null; // puede ser NULL
+        $cambioCamaAreaCerrada = $datos->cambioCamaAreaCerrada ?? 0;
+        $gestionaCamas = $datos->gestionaCamas ?? 0;
+
+        if (!$nombre) {
+            return $this->jsonError($response, 'El nombre es obligatorio.', 400);
+        }
 
         try {
             $db = getConeccionCAB();
@@ -528,37 +549,50 @@ class AbmUsuariosController
                 return $this->jsonError($response, 'Ya existe un sector con ese nombre.', 409);
             }
 
-            $stmtId = $db->prepare('SELECT ISNULL(MAX(idServicio), 0) + 1 as nextId FROM dbo.servicios');
-            $stmtId->execute();
-            $nextId = (int) $stmtId->fetchAll(\PDO::FETCH_OBJ)[0]->nextId;
-
-            $stmt = $db->prepare('INSERT INTO dbo.servicios (idServicio, nombreServicio) VALUES (:id, :nombre)');
-            $stmt->bindParam(':id',     $nextId, \PDO::PARAM_INT);
+            // ✅ INSERT sin columna 'activo'
+            $stmt = $db->prepare('
+            INSERT INTO dbo.servicios (nombreServicio, idTipoInternacion, cambioCamaAreaCerrada, gestionaCamas) 
+            VALUES (:nombre, :idTipoInternacion, :cambioCamaAreaCerrada, :gestionaCamas)
+        ');
             $stmt->bindParam(':nombre', $nombre);
+
+            // Manejar NULL para idTipoInternacion
+            if ($idTipoInternacion === null) {
+                $stmt->bindValue(':idTipoInternacion', null, \PDO::PARAM_NULL);
+            } else {
+                $stmt->bindParam(':idTipoInternacion', $idTipoInternacion);
+            }
+
+            $stmt->bindParam(':cambioCamaAreaCerrada', $cambioCamaAreaCerrada);
+            $stmt->bindParam(':gestionaCamas', $gestionaCamas);
             $stmt->execute();
+
+            $nextId = $db->lastInsertId();
+
             $db = null;
 
             return $this->jsonOk($response, [
-                'estado'  => 1,
+                'estado' => 1,
                 'mensaje' => 'Sector creado.',
-                'id'      => (string) $nextId,
+                'id' => (string) $nextId,
             ]);
 
         } catch (\PDOException $e) {
             return $this->jsonError($response, $e->getMessage(), 500);
         }
     }
-
     public function servicioActualizar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $datos  = json_decode($request->getBody());
-        $id     = $datos->id     ?? null;
+        $datos = json_decode($request->getBody());
+        $id = $datos->id ?? null;
         $nombre = trim($datos->nombre ?? '');
 
-        if (!$id || !$nombre) return $this->jsonError($response, 'ID y nombre son obligatorios.', 400);
+        if (!$id || !$nombre)
+            return $this->jsonError($response, 'ID y nombre son obligatorios.', 400);
 
         try {
             $db = getConeccionCAB();
@@ -567,7 +601,7 @@ class AbmUsuariosController
                 'SELECT idServicio FROM dbo.servicios WHERE nombreServicio = :nombre AND idServicio != :id'
             );
             $stmtCheck->bindParam(':nombre', $nombre);
-            $stmtCheck->bindParam(':id',     $id);
+            $stmtCheck->bindParam(':id', $id);
             $stmtCheck->execute();
             if (count($stmtCheck->fetchAll()) > 0) {
                 $db = null;
@@ -576,7 +610,7 @@ class AbmUsuariosController
 
             $stmt = $db->prepare('UPDATE dbo.servicios SET nombreServicio = :nombre WHERE idServicio = :id');
             $stmt->bindParam(':nombre', $nombre);
-            $stmt->bindParam(':id',     $id,    \PDO::PARAM_INT);
+            $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
             $stmt->execute();
             $db = null;
 
@@ -590,10 +624,12 @@ class AbmUsuariosController
     public function servicioEliminar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
         $id = $request->getQueryParams()['id'] ?? null;
-        if (!$id) return $this->jsonError($response, 'ID de sector requerido.', 400);
+        if (!$id)
+            return $this->jsonError($response, 'ID de sector requerido.', 400);
 
         try {
             $db = getConeccionCAB();
@@ -625,7 +661,7 @@ class AbmUsuariosController
         }
 
         try {
-            $db   = getConeccionCAB();
+            $db = getConeccionCAB();
             $stmt = $db->prepare(
                 'SELECT CAST(idAplicacion as VARCHAR) as id, nombre, descripcion
                  FROM dbo.aplicaciones
@@ -645,12 +681,14 @@ class AbmUsuariosController
     public function aplicacionCrear(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
         $datos = json_decode($request->getBody());
         $nombre = trim($datos->nombre ?? '');
         $descripcion = trim($datos->descripcion ?? '');
-        if (!$nombre) return $this->jsonError($response, 'El nombre es obligatorio.', 400);
+        if (!$nombre)
+            return $this->jsonError($response, 'El nombre es obligatorio.', 400);
 
         try {
             $db = getConeccionCAB();
@@ -675,9 +713,9 @@ class AbmUsuariosController
             $db = null;
 
             return $this->jsonOk($response, [
-                'estado'  => 1,
+                'estado' => 1,
                 'mensaje' => 'Aplicación creada.',
-                'id'      => (string) $nextId,
+                'id' => (string) $nextId,
             ]);
 
         } catch (\PDOException $e) {
@@ -688,14 +726,16 @@ class AbmUsuariosController
     public function aplicacionActualizar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
-        $datos  = json_decode($request->getBody());
-        $id     = $datos->id     ?? null;
+        $datos = json_decode($request->getBody());
+        $id = $datos->id ?? null;
         $nombre = trim($datos->nombre ?? '');
         $descripcion = trim($datos->descripcion ?? '');
 
-        if (!$id || !$nombre) return $this->jsonError($response, 'ID y nombre son obligatorios.', 400);
+        if (!$id || !$nombre)
+            return $this->jsonError($response, 'ID y nombre son obligatorios.', 400);
 
         try {
             $db = getConeccionCAB();
@@ -704,7 +744,7 @@ class AbmUsuariosController
                 'SELECT idAplicacion FROM dbo.aplicaciones WHERE nombre = :nombre AND idAplicacion != :id'
             );
             $stmtCheck->bindParam(':nombre', $nombre);
-            $stmtCheck->bindParam(':id',     $id);
+            $stmtCheck->bindParam(':id', $id);
             $stmtCheck->execute();
             if (count($stmtCheck->fetchAll()) > 0) {
                 $db = null;
@@ -714,7 +754,7 @@ class AbmUsuariosController
             $stmt = $db->prepare('UPDATE dbo.aplicaciones SET nombre = :nombre, descripcion = :descripcion WHERE idAplicacion = :id');
             $stmt->bindParam(':nombre', $nombre);
             $stmt->bindParam(':descripcion', $descripcion);
-            $stmt->bindParam(':id',     $id,    \PDO::PARAM_INT);
+            $stmt->bindParam(':id', $id, \PDO::PARAM_INT);
             $stmt->execute();
             $db = null;
 
@@ -728,10 +768,12 @@ class AbmUsuariosController
     public function aplicacionEliminar(Request $request, Response $response, $args)
     {
         $idUsuarioActor = 0;
-        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor)) return $check;
+        if ($check = $this->verificarTokenYSistemas($request, $response, $idUsuarioActor))
+            return $check;
 
         $id = $request->getQueryParams()['id'] ?? null;
-        if (!$id) return $this->jsonError($response, 'ID de aplicación requerido.', 400);
+        if (!$id)
+            return $this->jsonError($response, 'ID de aplicación requerido.', 400);
 
         try {
             $db = getConeccionCAB();
