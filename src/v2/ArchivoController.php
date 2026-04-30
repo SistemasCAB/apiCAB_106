@@ -8,8 +8,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use PDO;
 use PDOException;
 use stdClass;
-
-
+use Exception;
 
 /**
  * Class ArchivoController
@@ -118,11 +117,6 @@ class ArchivoController
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
-            // Log para debugging
-            error_log("=== DATOS RECIBIDOS EN PHP ===");
-            error_log("pacienteUltimaAtencion raw: " . ($datos->pacienteUltimaAtencion ?? 'null'));
-            error_log("JSON completo: " . $json);
-
             $errores = array();
 
             if (empty($datos->pacienteNombre))
@@ -160,43 +154,23 @@ class ArchivoController
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
             }
 
-            // === PROCESAMIENTO CORREGIDO DE FECHA ===
             $fechaUltimaAtencion = null;
             if (!empty($datos->pacienteUltimaAtencion) && $datos->pacienteUltimaAtencion !== 'null') {
                 $fechaRaw = trim($datos->pacienteUltimaAtencion);
-                error_log("Procesando fecha: " . $fechaRaw);
-
-                // Si ya viene en formato YYYYMMDD (8 dígitos)
                 if (preg_match('/^\d{8}$/', $fechaRaw)) {
                     $fechaUltimaAtencion = $fechaRaw;
-                    error_log("Formato YYYYMMDD detectado: " . $fechaUltimaAtencion);
-                }
-                // Si viene con guiones YYYY-MM-DD
-                elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaRaw)) {
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaRaw)) {
                     $fechaUltimaAtencion = str_replace('-', '', $fechaRaw);
-                    error_log("Formato YYYY-MM-DD convertido a: " . $fechaUltimaAtencion);
-                }
-                // Si viene con barras DD/MM/YYYY
-                elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fechaRaw)) {
+                } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $fechaRaw)) {
                     $partes = explode('/', $fechaRaw);
                     $fechaUltimaAtencion = $partes[2] . $partes[1] . $partes[0];
-                    error_log("Formato DD/MM/YYYY convertido a: " . $fechaUltimaAtencion);
-                }
-                // Si es un timestamp o cualquier otra cosa
-                else {
+                } else {
                     $timestamp = strtotime($fechaRaw);
                     if ($timestamp !== false) {
                         $fechaUltimaAtencion = date('Ymd', $timestamp);
-                        error_log("Timestamp convertido a: " . $fechaUltimaAtencion);
-                    } else {
-                        error_log("No se pudo parsear la fecha: " . $fechaRaw);
                     }
                 }
-            } else {
-                error_log("pacienteUltimaAtencion está vacío o es null");
             }
-
-            error_log("Fecha final a guardar: " . ($fechaUltimaAtencion ?? 'NULL'));
 
             $sqlVerificar = 'SELECT COUNT(*) as total FROM historiasClinicasProcesadas 
                          WHERE pacienteDocumento = :pacienteDocumento 
@@ -243,14 +217,10 @@ class ArchivoController
                 $stmt->bindValue(':usuarioApellido', $datos->usuarioApellido, PDO::PARAM_STR);
                 $stmt->bindValue(':usuarioDocumento', $datos->usuarioDocumento, PDO::PARAM_STR);
 
-                // fechaAlmacenamiento en formato YYYYMMDD
                 $fechaAlmacenamiento = ($datos->accion == 'guardar') ? date('Ymd') : null;
                 $stmt->bindValue(':fechaAlmacenamiento', $fechaAlmacenamiento, PDO::PARAM_STR);
 
                 $stmt->execute();
-
-                error_log("=== DATOS GUARDADOS CORRECTAMENTE ===");
-                error_log("pacienteUltimaAtencion guardado: " . ($fechaUltimaAtencion ?? 'NULL'));
 
                 $respuesta = array('estado' => 1, 'mensaje' => 'Documento guardado correctamente');
                 $response->getBody()->write(json_encode($respuesta));
@@ -296,7 +266,6 @@ class ArchivoController
         try {
             $db = getConeccionCAB();
 
-            // Verificar si la tabla existe y tiene datos
             $sqlCheck = "SELECT COUNT(*) as total FROM historiasClinicasProcesadas";
             $stmt = $db->prepare($sqlCheck);
             $stmt->execute();
@@ -307,48 +276,39 @@ class ArchivoController
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
             }
 
-            // Construir la consulta base
             $sql = "SELECT * FROM historiasClinicasProcesadas WHERE 1=1";
             $parametros = [];
-            $paramIndex = 0;
 
-            // Filtrar por acción
             if (!empty($params['accion'])) {
                 $sql .= " AND accion = :accion";
                 $parametros[':accion'] = $params['accion'];
             }
 
-            // Filtrar por número de caja
             if (!empty($params['numeroCaja'])) {
                 $sql .= " AND numeroCaja = :numeroCaja";
                 $parametros[':numeroCaja'] = $params['numeroCaja'];
             }
 
-            // Filtrar por tipo de documento
             if (!empty($params['tipoDocumento'])) {
                 $sql .= " AND tipoDocumento = :tipoDocumento";
                 $parametros[':tipoDocumento'] = $params['tipoDocumento'];
             }
 
-            // Filtrar por usuario ID
             if (!empty($params['usuarioId'])) {
                 $sql .= " AND usuarioId = :usuarioId";
                 $parametros[':usuarioId'] = $params['usuarioId'];
             }
 
-            // Filtrar por fecha desde
             if (!empty($params['fechaDesde'])) {
                 $sql .= " AND fechaRegistro >= :fechaDesde";
                 $parametros[':fechaDesde'] = $params['fechaDesde'];
             }
 
-            // Filtrar por fecha hasta
             if (!empty($params['fechaHasta'])) {
                 $sql .= " AND fechaRegistro <= :fechaHasta";
                 $parametros[':fechaHasta'] = $params['fechaHasta'];
             }
 
-            // FILTRO SEARCH CORREGIDO
             if (!empty($params['search'])) {
                 $searchTerm = '%' . $params['search'] . '%';
                 $sql .= " AND (pacienteNombre LIKE :search 
@@ -359,10 +319,8 @@ class ArchivoController
 
             $sql .= " ORDER BY fechaRegistro DESC";
 
-            // Preparar y ejecutar la consulta
             $stmt = $db->prepare($sql);
 
-            // Ejecutar con los parámetros
             foreach ($parametros as $key => $value) {
                 $stmt->bindValue($key, $value);
             }
@@ -375,11 +333,7 @@ class ArchivoController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
 
         } catch (PDOException $e) {
-            // Log más detallado para debugging
             error_log("Error en reporteUnificado: " . $e->getMessage());
-            error_log("SQL que causó error: " . ($sql ?? 'No SQL disponible'));
-            error_log("Parámetros: " . print_r($parametros ?? [], true));
-
             $respuesta = array(
                 'estado' => 0,
                 'mensaje' => 'Error al consultar: ' . $e->getMessage()
@@ -388,6 +342,7 @@ class ArchivoController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     }
+
     /**
      * Verifica qué tipos de documentos ya fueron procesados para un paciente
      *
@@ -423,25 +378,31 @@ class ArchivoController
         try {
             $db = getConeccionCAB();
 
-            $sqlHistoria = "SELECT COUNT(*) as total FROM historiasClinicasProcesadas 
-                            WHERE pacienteDocumento = :pacienteDocumento AND tipoDocumento = 'historia'";
+            $sqlHistoria = "SELECT accion, numeroCaja FROM historiasClinicasProcesadas 
+                        WHERE pacienteDocumento = :pacienteDocumento AND tipoDocumento = 'historia'
+                        ORDER BY fechaRegistro DESC";
             $stmt = $db->prepare($sqlHistoria);
             $stmt->bindParam(':pacienteDocumento', $pacienteDocumento);
             $stmt->execute();
-            $tieneHistoria = $stmt->fetch(PDO::FETCH_OBJ)->total > 0;
+            $historia = $stmt->fetch(PDO::FETCH_OBJ);
 
-            $sqlLegajo = "SELECT COUNT(*) as total FROM historiasClinicasProcesadas 
-                          WHERE pacienteDocumento = :pacienteDocumento AND tipoDocumento = 'legajo'";
+            $sqlLegajo = "SELECT accion, numeroCaja FROM historiasClinicasProcesadas 
+                      WHERE pacienteDocumento = :pacienteDocumento AND tipoDocumento = 'legajo'
+                      ORDER BY fechaRegistro DESC";
             $stmt = $db->prepare($sqlLegajo);
             $stmt->bindParam(':pacienteDocumento', $pacienteDocumento);
             $stmt->execute();
-            $tieneLegajo = $stmt->fetch(PDO::FETCH_OBJ)->total > 0;
+            $legajo = $stmt->fetch(PDO::FETCH_OBJ);
 
             $db = null;
 
             $respuesta = array(
-                'tieneHistoria' => $tieneHistoria,
-                'tieneLegajo' => $tieneLegajo
+                'tieneHistoria' => !empty($historia),
+                'tieneLegajo' => !empty($legajo),
+                'historiaEstado' => !empty($historia) ? $historia->accion : 'disponible',
+                'legajoEstado' => !empty($legajo) ? $legajo->accion : 'disponible',
+                'historiaNumeroCaja' => (!empty($historia) && $historia->accion === 'guardar') ? $historia->numeroCaja : null,
+                'legajoNumeroCaja' => (!empty($legajo) && $legajo->accion === 'guardar') ? $legajo->numeroCaja : null
             );
 
             $response->getBody()->write(json_encode($respuesta));
@@ -451,6 +412,139 @@ class ArchivoController
             $respuesta = array('estado' => 0, 'mensaje' => 'Error al consultar: ' . $e->getMessage());
             $response->getBody()->write(json_encode($respuesta));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
+    /**
+     * Elimina un documento procesado (historia o legajo)
+     *
+     * @param Request $request
+     * @param Response $response
+     * @param array $args
+     * @return Response
+     */
+    public function eliminarDocumento(Request $request, Response $response, $args)
+    {
+        $tokenAcceso = $request->getHeader('TokenAcceso');
+        
+        if (!isset($tokenAcceso[0]) || verificarToken($tokenAcceso[0]) === false) {
+            $respuesta = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        $json = $request->getBody();
+        $datos = json_decode($json);
+        
+        if (!$datos || empty($datos->id)) {
+            $respuesta = array('estado' => 0, 'mensaje' => 'ID de documento es obligatorio');
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+        
+        try {
+            $db = getConeccionCAB();
+            
+            $sqlSelect = "SELECT numeroCaja FROM historiasClinicasProcesadas WHERE id = :id";
+            $stmt = $db->prepare($sqlSelect);
+            $stmt->bindParam(':id', $datos->id);
+            $stmt->execute();
+            $documento = $stmt->fetch(PDO::FETCH_OBJ);
+            
+            if (!$documento) {
+                $respuesta = array('estado' => 0, 'mensaje' => 'Documento no encontrado');
+                $response->getBody()->write(json_encode($respuesta));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+            
+            $sqlDelete = "DELETE FROM historiasClinicasProcesadas WHERE id = :id";
+            $stmt = $db->prepare($sqlDelete);
+            $stmt->bindParam(':id', $datos->id);
+            $stmt->execute();
+            
+            $respuesta = array(
+                'estado' => 1, 
+                'mensaje' => 'Documento eliminado correctamente'
+            );
+            
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            
+        } catch (PDOException $e) {
+            error_log("Error al eliminar documento: " . $e->getMessage());
+            $respuesta = array('estado' => 0, 'mensaje' => 'Error al eliminar: ' . $e->getMessage());
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        } finally {
+            if (isset($db)) $db = null;
+        }
+    }
+
+    /**
+     * Elimina una caja completa (todos sus documentos)
+     *
+     * @param Request $request
+     * @param Response $response
+     * @param array $args
+     * @return Response
+     */
+    public function eliminarCaja(Request $request, Response $response, $args)
+    {
+        $tokenAcceso = $request->getHeader('TokenAcceso');
+        
+        if (!isset($tokenAcceso[0]) || verificarToken($tokenAcceso[0]) === false) {
+            $respuesta = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        $json = $request->getBody();
+        $datos = json_decode($json);
+        
+        if (!$datos || empty($datos->numeroCaja)) {
+            $respuesta = array('estado' => 0, 'mensaje' => 'Número de caja es obligatorio');
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
+        }
+        
+        try {
+            $db = getConeccionCAB();
+            
+            $sqlCheck = "SELECT COUNT(*) as total FROM historiasClinicasProcesadas WHERE numeroCaja = :numeroCaja";
+            $stmt = $db->prepare($sqlCheck);
+            $stmt->bindParam(':numeroCaja', $datos->numeroCaja);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_OBJ);
+            
+            if ($result->total == 0) {
+                $respuesta = array('estado' => 0, 'mensaje' => 'La caja no existe o ya está vacía');
+                $response->getBody()->write(json_encode($respuesta));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
+            }
+            
+            $sqlDelete = "DELETE FROM historiasClinicasProcesadas WHERE numeroCaja = :numeroCaja";
+            $stmt = $db->prepare($sqlDelete);
+            $stmt->bindParam(':numeroCaja', $datos->numeroCaja);
+            $stmt->execute();
+            
+            $eliminados = $stmt->rowCount();
+            
+            $respuesta = array(
+                'estado' => 1, 
+                'mensaje' => "Caja N° {$datos->numeroCaja} eliminada correctamente",
+                'documentosEliminados' => $eliminados
+            );
+            
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            
+        } catch (PDOException $e) {
+            error_log("Error al eliminar caja: " . $e->getMessage());
+            $respuesta = array('estado' => 0, 'mensaje' => 'Error al eliminar caja: ' . $e->getMessage());
+            $response->getBody()->write(json_encode($respuesta));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        } finally {
+            if (isset($db)) $db = null;
         }
     }
 }

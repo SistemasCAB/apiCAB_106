@@ -141,6 +141,7 @@ return function (App $app) {
             $g->get('/camasDisponiblesAreaCerrada', '\App\V2\TableroCamasController:camasDisponiblesAreaCerrada');
             $g->post('/cambioCamaCrearSolicitudAreaCerrada', '\App\V2\TableroCamasController:cambioCamaCrearSolicitudAreaCerrada');
             $g->post('/ordenarCambioCama', '\App\V2\TableroCamasController:ordenarCambioCama');
+            $g->post('/enviaQuirofano', '\App\V2\TableroCamasController:enviarQuirofano');
 
 
             // ALERTAS           
@@ -163,22 +164,22 @@ return function (App $app) {
             $g->get('/reservas', '\App\V2\TableroCamasController:reservasVerUna');
             $g->post('/reservas', '\App\V2\TableroCamasController:reservaCrear');
             $g->patch('/reservas', '\App\V2\TableroCamasController:reservaCancelar');
-            
+
 
             // PACIENTES
-            $g->get('/paciente', '\App\V2\TableroCamasController:paciente');            
+            $g->get('/paciente', '\App\V2\TableroCamasController:paciente');
 
             // TAREAS
             $g->get('/tareas', '\App\V2\TableroCamasController:tareas');
             $g->get('/tareasCama', '\App\V2\TableroCamasController:tareasCama');
             $g->get('/tareasCama/{idTarea}', '\App\V2\TableroCamasController:tareasCama_VerUna');
             $g->post('/tareaIniciarFinalizarCancelar', '\App\V2\TableroCamasController:tareaIniciarFinalizarCancelar');
-            $g->post('/tareaReparacionCrear','\App\V2\TableroCamasController:tareaReparacionCrear');
-            $g->get('/categoriasReparaciones','\App\V2\TableroCamasController:categoriasReparaciones');
+            $g->post('/tareaReparacionCrear', '\App\V2\TableroCamasController:tareaReparacionCrear');
+            $g->get('/categoriasReparaciones', '\App\V2\TableroCamasController:categoriasReparaciones');
 
             // CIRUGIAS
             $g->get('/cirugiasdeldia', '\App\V2\TableroCamasController:cirugiasdeldia');
-            
+
 
             // TICKETS
             $g->get('/tickets/{idTicket}', '\App\V2\TableroCamasController:ticket_ver');
@@ -192,23 +193,23 @@ return function (App $app) {
             $g->post('/login', '\App\V2\AbmUsuariosController:login');
 
             // USUARIOS
-            $g->get('/usuarios',           '\App\V2\AbmUsuariosController:usuariosVerTodos');
-            $g->post('/usuario',           '\App\V2\AbmUsuariosController:usuarioCrear');
-            $g->put('/usuario',            '\App\V2\AbmUsuariosController:usuarioActualizar');
-            $g->patch('/usuario/toggle',   '\App\V2\AbmUsuariosController:usuarioToggleActivo');
-            $g->delete('/usuario',         '\App\V2\AbmUsuariosController:usuarioEliminar');
+            $g->get('/usuarios', '\App\V2\AbmUsuariosController:usuariosVerTodos');
+            $g->post('/usuario', '\App\V2\AbmUsuariosController:usuarioCrear');
+            $g->put('/usuario', '\App\V2\AbmUsuariosController:usuarioActualizar');
+            $g->patch('/usuario/toggle', '\App\V2\AbmUsuariosController:usuarioToggleActivo');
+            $g->delete('/usuario', '\App\V2\AbmUsuariosController:usuarioEliminar');
 
             // SERVICIOS (SECTORES)
-            $g->get('/servicios',          '\App\V2\AbmUsuariosController:serviciosVerTodos');
-            $g->post('/servicio',          '\App\V2\AbmUsuariosController:servicioCrear');
-            $g->put('/servicio',           '\App\V2\AbmUsuariosController:servicioActualizar');
-            $g->delete('/servicio',        '\App\V2\AbmUsuariosController:servicioEliminar');
+            $g->get('/servicios', '\App\V2\AbmUsuariosController:serviciosVerTodos');
+            $g->post('/servicio', '\App\V2\AbmUsuariosController:servicioCrear');
+            $g->put('/servicio', '\App\V2\AbmUsuariosController:servicioActualizar');
+            $g->delete('/servicio', '\App\V2\AbmUsuariosController:servicioEliminar');
 
             // APLICACIONES
-            $g->get('/aplicaciones',       '\App\V2\AbmUsuariosController:aplicacionesVerTodos');
-            $g->post('/aplicacion',        '\App\V2\AbmUsuariosController:aplicacionCrear');
-            $g->put('/aplicacion',         '\App\V2\AbmUsuariosController:aplicacionActualizar');
-            $g->delete('/aplicacion',      '\App\V2\AbmUsuariosController:aplicacionEliminar');
+            $g->get('/aplicaciones', '\App\V2\AbmUsuariosController:aplicacionesVerTodos');
+            $g->post('/aplicacion', '\App\V2\AbmUsuariosController:aplicacionCrear');
+            $g->put('/aplicacion', '\App\V2\AbmUsuariosController:aplicacionActualizar');
+            $g->delete('/aplicacion', '\App\V2\AbmUsuariosController:aplicacionEliminar');
         });
 
         // ESTERILIZACION
@@ -245,16 +246,14 @@ return function (App $app) {
             $g->delete('/pack-articulo', '\App\V2\EsterilizacionController:packArticuloEliminar');
         });
 
-         // ARCHIVO
+        // ARCHIVO
         $group->group('/archivo', function ($g) {
             $g->get('/pacienteultimaatencion/{hc}', '\App\V2\ArchivoController:pacienteUltimaAtencion');
-        });
-
-        // ARCHIVO - Gestión de Historias Clínicas
-        $group->group('/archivo', function ($g) {
             $g->post('/guardarDocumento', '\App\V2\ArchivoController:guardarDocumento');
             $g->get('/reporteUnificado', '\App\V2\ArchivoController:reporteUnificado');
             $g->get('/tiposProcesados', '\App\V2\ArchivoController:tiposProcesados');
+            $g->post('/eliminarDocumento', '\App\V2\ArchivoController:eliminarDocumento');
+            $g->post('/eliminarCaja', '\App\V2\ArchivoController:eliminarCaja');
         });
 
     });

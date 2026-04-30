@@ -350,20 +350,19 @@ class AbmUsuariosController
                 return $this->jsonError($response, 'Ya existe un usuario con ese DNI.', 409);
             }
 
-            $stmtId = $db->prepare('SELECT ISNULL(MAX(idUsuario), 0) + 1 as nextId FROM dbo.usuarios');
-            $stmtId->execute();
-            $nextId = (int) $stmtId->fetchAll(\PDO::FETCH_OBJ)[0]->nextId;
-
+            // 🔥 CORRECCIÓN: No especificar idUsuario, dejar que IDENTITY lo genere
             $stmtU = $db->prepare(
-                'INSERT INTO dbo.usuarios (idUsuario, tdocCodigo, nroDocumento, nombre, apellido, activo)
-                 VALUES (:id, 1, :dni, :nombre, :apellido, :activo)'
+                'INSERT INTO dbo.usuarios (tdocCodigo, nroDocumento, nombre, apellido, activo)
+             VALUES (1, :dni, :nombre, :apellido, :activo)'
             );
-            $stmtU->bindParam(':id', $nextId, \PDO::PARAM_INT);
             $stmtU->bindParam(':dni', $dni);
             $stmtU->bindParam(':nombre', $nombre);
             $stmtU->bindParam(':apellido', $apellido);
             $stmtU->bindParam(':activo', $estado, \PDO::PARAM_INT);
             $stmtU->execute();
+
+            // Obtener el ID generado automáticamente
+            $nextId = $db->lastInsertId();
 
             foreach ($sectorIds as $idServicio) {
                 $s = $db->prepare('INSERT INTO dbo.usuariosServicios (idUsuario, idServicio) VALUES (:u, :s)');
@@ -408,10 +407,20 @@ class AbmUsuariosController
         try {
             $db = getConeccionCAB();
 
+            // 🔥 CORRECCIÓN: Excluir el usuario actual en la verificación de DNI duplicado
+            $stmtCheck = $db->prepare('SELECT idUsuario FROM dbo.usuarios WHERE nroDocumento = :dni AND idUsuario != :id');
+            $stmtCheck->bindParam(':dni', $dni);
+            $stmtCheck->bindParam(':id', $id, \PDO::PARAM_INT);
+            $stmtCheck->execute();
+            if (count($stmtCheck->fetchAll()) > 0) {
+                $db = null;
+                return $this->jsonError($response, 'Ya existe otro usuario con ese DNI.', 409);
+            }
+
             $stmtU = $db->prepare(
                 'UPDATE dbo.usuarios
-                 SET nroDocumento = :dni, nombre = :nombre, apellido = :apellido, activo = :activo
-                 WHERE idUsuario = :id'
+             SET nroDocumento = :dni, nombre = :nombre, apellido = :apellido, activo = :activo
+             WHERE idUsuario = :id'
             );
             $stmtU->bindParam(':dni', $dni);
             $stmtU->bindParam(':nombre', $nombre);

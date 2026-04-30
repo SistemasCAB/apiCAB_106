@@ -1004,7 +1004,7 @@ class TableroCamasController
         $datosCamas = new \Markey;
         $camas = $datosCamas->getCamasHabitacion($idHabitacion);
         if(is_null($camas)){
-            debug_log2('Error en funcion camasActualizarEstados: la función getCamasHabitacion devolvió null. idHabitacion: '.$idHabitacion);
+            //debug_log2('Error en funcion camasActualizarEstados: la función getCamasHabitacion devolvió null. idHabitacion: '.$idHabitacion);
             return 0; // no existe la habitación o no hay camas en la habitación indicada.
         }else{
             // Recorro cada cama de esta habitación y actualizo el estado de cada cama.
@@ -1012,7 +1012,7 @@ class TableroCamasController
             foreach($camas as $cama){
                 // guardo el estado actual de la cama
                 $estadoActual = $cama->id_estado;
-                debug_log2('Cama: ' . $cama->id_cama . ' - Estado actual: ' . $estadoActual);
+                //debug_log2('Cama: ' . $cama->id_cama . ' - Estado actual: ' . $estadoActual);
                 
                 // 3- Verifico que la cama esté disponible, en reparación o en limpieza. Si la cama tiene otro estado no lo cambio
                 if(($cama->id_estado == 1) or ($cama->id_estado == 3) or ($cama->id_estado == 4)){
@@ -1035,7 +1035,7 @@ class TableroCamasController
                         $limpia                     = $cam->limpia;
                     }
                     
-                    debug_log2('Cama: ' . $cama->id_cama . ' - CEA: ' . $camaEnAislamiento.' - TBH: ' . $tareasBloqueanHabitacion . ' - TBC: ' . $tareasBloqueanCama . ' - Limpia: ' . $limpia);
+                    //debug_log2('Cama: ' . $cama->id_cama . ' - CEA: ' . $camaEnAislamiento.' - TBH: ' . $tareasBloqueanHabitacion . ' - TBC: ' . $tareasBloqueanCama . ' - Limpia: ' . $limpia);
 
                     if($camaEnAislamiento == 1){  // si la cama está en aislamiento
                         
@@ -1083,21 +1083,22 @@ class TableroCamasController
                         }
                     }
                     
-                    debug_log2('Cama: ' . $cama->id_cama . ' - Nuevo Estado: ' . $nuevoEstado);
+                    //debug_log2('Cama: ' . $cama->id_cama . ' - Nuevo Estado: ' . $nuevoEstado);
+
                     // ACTUALIZO EL ESTADO DE LA CAMA EN MARKEY SOLO SI EL NUEVO ESTADO ES DISTINTO AL ESTADO ACTUAL.
                     if($estadoActual <> $nuevoEstado){                                    
                         // si la cama es virtual solo puedo asignarle el estado disponible
                         if($cama->tipocama == 'V'){
-                            debug_log2('Cama: ' . $cama->id_cama . ' - Cama Virtual  Poner disponible en Markey');
+                            //debug_log2('Cama: ' . $cama->id_cama . ' - Cama Virtual  Poner disponible en Markey');
                             // llamo al servicio de Markey para cambiar el estado de la cama a disponible
                             if($datosCamas->cambiarEstado($cama->id_cama, 1) == 1){
-                                debug_log2('Cama: ' . $cama->id_cama . ' - limpiar alertas históricas');
+                                //debug_log2('Cama: ' . $cama->id_cama . ' - limpiar alertas históricas');
 
                                 // limpio las alertas históricas de la cama
                                 limpiarAlertasHistoriasCama($cama->id_cama); // función definida en src/Common/helpers.php
                             }
                         }else{
-                            debug_log2('Cama: ' . $cama->id_cama . ' - Cama Física - cambiar estado en Markey a: ' . $nuevoEstado);
+                            //debug_log2('Cama: ' . $cama->id_cama . ' - Cama Física - cambiar estado en Markey a: ' . $nuevoEstado);
                             // llamo al servicio de Markey para cambiar el estado de la cama a $nuevo_estado
                             if($datosCamas->cambiarEstado($cama->id_cama, $nuevoEstado) == 1){
 
@@ -1113,7 +1114,7 @@ class TableroCamasController
                             }
                         }
 
-                        debug_log2('Cama: ' . $cama->id_cama . ' - registrar cambio de estado en bitácora. Evento: 10, DNI: '.$dni.', Usuario: '.$nombreUsuario);
+                        //debug_log2('Cama: ' . $cama->id_cama . ' - registrar cambio de estado en bitácora. Evento: 10, DNI: '.$dni.', Usuario: '.$nombreUsuario);
                         // registro el cambio de estado en la bitácora de la cama.
                         bitacoraRegistrarCambioEstadoCama($cama->id_cama, 10, $dni, $nombreUsuario);
                     }
@@ -1123,7 +1124,7 @@ class TableroCamasController
             // actualizo las camas en las tablas locales camasMarkey y camas para que queden sincronizadas con los datos de Markey.
             // para esto vuelvo a llamar al servicio de Markey para obtener las camas de esta habitación con los datos actualizados.
             
-            debug_log2('Sincronizar tablas locales: idHabitacion = ' . $idHabitacion );
+            //debug_log2('Sincronizar tablas locales: idHabitacion = ' . $idHabitacion );
             require_once '../class/Markey.php';
             $datosCamas = new \Markey;
             $camas = $datosCamas->getCamasHabitacion($idHabitacion);
@@ -1233,7 +1234,7 @@ class TableroCamasController
             }
         }
 
-        debug_log2('Sincronizar finalizada tablas locales: idHabitacion = ' . $idHabitacion );
+        //debug_log2('Sincronizar finalizada tablas locales: idHabitacion = ' . $idHabitacion );
         
         return 1; // proceso finalizado exitosamente.  
             
@@ -3801,6 +3802,179 @@ class TableroCamasController
         }
     }
 
+    // ENVIAR UN PACIENTE A QUIRÓFANO
+    public function enviarQuirofano(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosQx          = json_decode($json);
+   
+        $idCamaOrigen           = $datosQx->idCamaOrigen ?? null;
+        $idCamaDestino          = $datosQx->idCamaDestino ?? null;
+        $idUsuario              = $datosQx->idUsuario ?? null;
+        $idServicio             = $datosQx->idServicio ?? null;
+        $reservarCama           = $datosQx->reservarCama ?? null;
+        $idAplicacion           = $datosQx->idAplicacion ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idCamaOrigen == ''){ $error ++; }
+        if($idCamaDestino == ''){ $error ++; } 
+        if($idUsuario == ''){ $error ++; }
+        if($idServicio == ''){ $error ++;}
+        if($reservarCama == ''){ $error ++;}
+        if($idAplicacion == ''){ $error ++;}
+
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        if(!isset($tokenAcceso[0])){
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+            
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);            
+        }
+
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+            
+            $sql = 'EXEC enviarQuirofano 
+                        @idCamaOrigen = :idCamaOrigen,
+                        @idCamaDestino = :idCamaDestino,
+                        @idUsuario = :idUsuario,
+                        @idServicio = :idServicio,
+                        @reservarCama = :reservarCama,
+                        @idAplicacion = :idAplicacion';
+                    
+            
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("idCamaOrigen", $idCamaOrigen);
+            $stmt->bindParam("idCamaDestino", $idCamaDestino);
+            $stmt->bindParam("idUsuario", $idUsuario);
+            $stmt->bindParam("idServicio", $idServicio);
+            $stmt->bindParam("reservarCama", $reservarCama);
+            $stmt->bindParam("idAplicacion", $idAplicacion);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $stmt = null;  // Cierra el statement explícitamente
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            $estado     = (int)$res[0]->estado;
+            $mensaje    = $res[0]->mensaje ?? 'Sin mensaje';
+            $idCama     = isset($res[0]->idCama) ? (int)$res[0]->idCama : null; // $res[0]->idCama podría no existir o ser null.
+            //debug_log2('estado: '.$estado .' - Mensaje: '.$mensaje.' - idCama: '. $idCama );
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => $mensaje
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+
+
+            // // PASO 2: En Markey cambio el estado de la cama a disponible
+            // require_once '../class/Markey.php';
+            // $datosCamas = new \Markey;
+            // if($datosCamas->cambiarEstado($idCama, 1) <> 1){
+            //     $db->rollBack();
+            //     $db = null;
+                
+            //     $datos = array(
+            //             'estado' => 0, 
+            //             'mensaje' => 'No se pudo cambiar el estado de la cama en Markey. Endpoint: cambiarEstado'
+            //         );
+            //     $response->getBody()->write(json_encode($datos));
+            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            // }
+            
+            // Si todo está bien, confirma la transacción
+            $db->commit();
+            $db = null;
+
+
+            // PASO 3:  Actualizar el estado de las camas de la habitación. Se ejecuta fuera de la transaccion.
+            // este paso se ejecuta porque el estado podría cambiar dependiendo de si hay tareas de limpieza o reparación.
+            // obtengo los datos necesarios para ejecutar la función camasActualizarEstados()
+
+            // $db3 = getConeccionCAB();                             
+            // $sql3 = 'EXEC ObtenerDatosUsuarioYHabitacionDesdeReserva @idReserva = :idReserva, @idUsuario = :idUsuario';
+            
+            // $stmt3 = $db3->prepare($sql3);
+            // $stmt3->bindParam(":idReserva", $idReserva);
+            // $stmt3->bindParam(":idUsuario", $idUsuario);
+            // $stmt3->execute();
+            // $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
+            
+            // // guardo los valores devueltos por el procedimiento almacenado ObtenerDatosUsuarioYHabitacion
+            // $dni            = $res3[0]->dni;
+            // $nombreUsuario  = $res3[0]->nombreUsuario;
+            // $idHabitacion   = $res3[0]->idHabitacion;
+            
+            // //debug_log2('idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+
+            // if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {       
+            //     //debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $usuario . ' - idServicio: ' . $idServicio);            
+            //     $datos = array(
+            //             'estado' => 0, 
+            //             'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
+            //         );
+            //     $response->getBody()->write(json_encode($datos));
+            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            // }
+
+            // else{
+            //     debug_log2('Función camasActualizarEstados ejecutada correctamente: idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+            // }
+            
+            
+            $datos = array(
+                    'estado' => 1, 
+                    'mensaje' => 'El paciente fue enviado a Quirófano correctamente.'
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        }
+
+        
+    }
    
     
 //______________ RESERVAS ________________________________________________________________________
@@ -3827,20 +4001,21 @@ class TableroCamasController
 
                     foreach($resultado as $reserva){
                         $r = new \stdClass();
-                        $r->idReserva = (int)$reserva->idReserva;
-                        $r->idCama = $reserva->idCama;
-                        $r->fechaReserva = $reserva->fechaReserva;
-                        $r->tdocCodigo = $reserva->tdocCodigo;
-                        $r->nroDocumento = $reserva->nroDocumento;
-                        $r->nombrePaciente = $reserva->nombrePaciente;
-                        $r->motivo = $reserva->motivo;
-                        $r->reservadaPorDni = $reserva->reservadaPorDni;
-                        $r->reservadaPorNombre = $reserva->reservadaPorNombre;
-                        $r->fechaCancelada = $reserva->fechaCancelada;
-                        $r->canceladaPorDni = $reserva->canceladaPorDni;
-                        $r->canceladaPorNombre = $reserva->canceladaPorNombre;
-                        $r->idMotivoFinReserva = $reserva->idMotivoFinReserva;
-                        $r->idSolicitudCambio = $reserva->idSolicitudCambio;
+                        $r->idReserva               = (int)$reserva->idReserva;
+                        $r->idCama                  = $reserva->idCama;
+                        $r->fechaReserva            = $reserva->fechaReserva;
+                        $r->tdocCodigo              = $reserva->tdocCodigo;
+                        $r->tdocDescripcion         = $reserva->tdocDescripcion;
+                        $r->nroDocumento            = $reserva->nroDocumento;
+                        $r->nombrePaciente          = $reserva->nombrePaciente;
+                        $r->motivo                  = $reserva->motivo;
+                        $r->reservadaPorDni         = $reserva->reservadaPorDni;
+                        $r->reservadaPorNombre      = $reserva->reservadaPorNombre;
+                        $r->fechaCancelada          = $reserva->fechaCancelada;
+                        $r->canceladaPorDni         = $reserva->canceladaPorDni;
+                        $r->canceladaPorNombre      = $reserva->canceladaPorNombre;
+                        $r->idMotivoFinReserva      = $reserva->idMotivoFinReserva;
+                        $r->idSolicitudCambio       = $reserva->idSolicitudCambio;
                         
 
                         array_push($datos,$r);
@@ -4018,19 +4193,22 @@ class TableroCamasController
         $json           = $request->getBody();
         $datosReserva   = json_decode($json);
    
-        $idReserva          = $datosReserva->idCama ?? null;
-        $motivo             = $datosReserva->motivo ?? null;
+        $idReserva          = $datosReserva->idReserva ?? null;
+        $idMotivo           = $datosReserva->idMotivo ?? null;
         $idUsuario          = $datosReserva->idUsuario ?? null;
         $idAplicacion       = $datosReserva->idAplicacion ?? null;
+        $idServicio         = $datosReserva->idServicio ?? null;
 
+       // debug_log2('idReserva:'.$idReserva.' - idMotivo:'.$idMotivo.' - idUsuario:'.$idUsuario.' - idAplicacion:'.$idAplicacion.' - idServicio:'.$idServicio);
 
         $error = 0;
         $datos = array();
 
         if($idReserva == ''){ $error ++; }
-        if($motivo == ''){ $error ++; }
+        if($idMotivo == ''){ $error ++; }
         if($idUsuario == ''){ $error ++; }
         if($idAplicacion == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
 
         if ($error > 0) {
             $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
@@ -4059,14 +4237,14 @@ class TableroCamasController
             
             $sql = 'EXEC reservas_cancelar 
                         @idReserva = :idReserva,                        
-                        @motivo = :motivo,
+                        @idMotivo = :idMotivo,
                         @idUsuario = :idUsuario,
                         @idAplicacion = :idAplicacion';
                     
             
             $stmt = $db->prepare($sql);
             $stmt->bindParam("idReserva", $idReserva);
-            $stmt->bindParam("motivo", $motivo);
+            $stmt->bindParam("idMotivo", $idMotivo);
             $stmt->bindParam("idUsuario", $idUsuario);
             $stmt->bindParam("idAplicacion", $idAplicacion);
             $stmt->execute();
@@ -4079,8 +4257,10 @@ class TableroCamasController
                 throw new \Exception('El procedimiento no retornó resultados');
             }
             
-            $estado = (int)$res[0]->estado;
-            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            $estado     = (int)$res[0]->estado;
+            $mensaje    = $res[0]->mensaje ?? 'Sin mensaje';
+            $idCama     = isset($res[0]->idCama) ? (int)$res[0]->idCama : null; // $res[0]->idCama podría no existir o ser null.
+            //debug_log2('estado: '.$estado .' - Mensaje: '.$mensaje.' - idCama: '. $idCama );
             
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -4095,32 +4275,67 @@ class TableroCamasController
                 $response->getBody()->write(json_encode($datos));
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
             }
-            
-            // PASO 2: Pongo disponible a cama
-            // require_once '../class/Markey.php';
-            // $Markey = new \Markey;
-            // $resultadoReservarCama = $Markey->reservarCama($idCama, '');
 
-            // if($resultadoReservarCama == 0){
-            //     // ocurrió algún error.
-            //     $db->rollBack();
-            //     $db = null;
-                    
-            //     $datos = array(
-            //         'estado' => 0, 
-            //         'mensaje' => 'Error al intentar reservar la cama en Markey. Función: reservarCama. Endpoint: cambiarEstado'
-            //     );
-            //     $response->getBody()->write(json_encode($datos));
-            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-            // }
+
+
+            // PASO 2: En Markey cambio el estado de la cama a disponible
+            require_once '../class/Markey.php';
+            $datosCamas = new \Markey;
+            if($datosCamas->cambiarEstado($idCama, 1) <> 1){
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => 'No se pudo cambiar el estado de la cama en Markey. Endpoint: cambiarEstado'
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
             
             // Si todo está bien, confirma la transacción
             $db->commit();
             $db = null;
+
+
+            // PASO 3:  Actualizar el estado de las camas de la habitación. Se ejecuta fuera de la transaccion.
+            // este paso se ejecuta porque el estado podría cambiar dependiendo de si hay tareas de limpieza o reparación.
+            // obtengo los datos necesarios para ejecutar la función camasActualizarEstados()
+
+            $db3 = getConeccionCAB();                             
+            $sql3 = 'EXEC ObtenerDatosUsuarioYHabitacionDesdeReserva @idReserva = :idReserva, @idUsuario = :idUsuario';
+            
+            $stmt3 = $db3->prepare($sql3);
+            $stmt3->bindParam(":idReserva", $idReserva);
+            $stmt3->bindParam(":idUsuario", $idUsuario);
+            $stmt3->execute();
+            $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
+            
+            // guardo los valores devueltos por el procedimiento almacenado ObtenerDatosUsuarioYHabitacion
+            $dni            = $res3[0]->dni;
+            $nombreUsuario  = $res3[0]->nombreUsuario;
+            $idHabitacion   = $res3[0]->idHabitacion;
+            
+            //debug_log2('idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+
+            if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {       
+                //debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $usuario . ' - idServicio: ' . $idServicio);            
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            // else{
+            //     debug_log2('Función camasActualizarEstados ejecutada correctamente: idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+            // }
+            
             
             $datos = array(
                     'estado' => 1, 
-                    'mensaje' => 'La cama fue reservada correctamente.'
+                    'mensaje' => 'La reserva fue cancelada correctamente.'
                 );
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
@@ -4760,8 +4975,8 @@ class TableroCamasController
         $idServicio = $datosTarea->idServicio ?? null;
         $accion    = $datosTarea->accion ?? null;
 
-        debug_log2('------------------------------');
-        debug_log2('tareaIniciarFinalizarCancelar - idTarea: ' . $idTarea . ' - idUsuario: ' . $idUsuario . ' - idServicio: ' . $idServicio . ' - accion: ' . $accion);
+        //debug_log2('------------------------------');
+        //debug_log2('tareaIniciarFinalizarCancelar - idTarea: ' . $idTarea . ' - idUsuario: ' . $idUsuario . ' - idServicio: ' . $idServicio . ' - accion: ' . $accion);
         
         $error = 0;
         $datos = array();
@@ -4837,7 +5052,7 @@ class TableroCamasController
             // $inhabilitaHab      = (int)$res[0]->inhabilitaHab;
             $idCama             = (int)$res[0]->idCama;
             
-            debug_log2('Resultado de SP tarea_iniciarFinalizarCancelar - estado: ' . $estado . ' - mensaje: ' . $mensaje . ' - idTicket: ' . $idTicket . ' - idTipoTarea: ' . $idTipoTarea.' - idCama: ' . $idCama);
+            //debug_log2('Resultado de SP tarea_iniciarFinalizarCancelar - estado: ' . $estado . ' - mensaje: ' . $mensaje . ' - idTicket: ' . $idTicket . ' - idTipoTarea: ' . $idTipoTarea.' - idCama: ' . $idCama);
 
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -4885,7 +5100,7 @@ class TableroCamasController
 
 
             // Hasta acá todo se ejecutó bien, así que confirmo la transacción
-            debug_log2('Confirmando transacción');
+           // debug_log2('Confirmando transacción');
             $db->commit();
             $db = null;
 
@@ -4923,16 +5138,17 @@ class TableroCamasController
                 $idHabitacion = $res3[0]->idHabitacion;
                 
                 if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {       
-                    debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+                    //debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
                     $datos = array(
                             'estado' => 0, 
                             'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
                         );
                     $response->getBody()->write(json_encode($datos));
                     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-                }else{
-                    debug_log2('Función camasActualizarEstados ejecutada correctamente: idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
                 }
+                //else{
+                //    debug_log2('Función camasActualizarEstados ejecutada correctamente: idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
+                //}
             }
 
             
@@ -4952,7 +5168,7 @@ class TableroCamasController
                 $db = null; 
             }
 
-            debug_log2('Error en tareaIniciarFinalizarCancelar: ' . $e->getMessage());
+            //debug_log2('Error en tareaIniciarFinalizarCancelar: ' . $e->getMessage());
             
             $datos = array(
                     'estado' => 0, 
@@ -5122,7 +5338,7 @@ class TableroCamasController
             
             
             // PASO 3: Actualizo la tarea para guardar el número de ticket que se le asignó.
-            debug_log2('Actualizando tarea '. $idTarea .' con idTicket: ' . $idTicketCreado);
+            //debug_log2('Actualizando tarea '. $idTarea .' con idTicket: ' . $idTicketCreado);
             
             $sql3 = 'EXEC tareaReparacionActualizarTicketAsignado @idTarea = :idTarea, @idTicket = :idTicket';
             $stmt3 = $db->prepare($sql3);
@@ -5132,7 +5348,7 @@ class TableroCamasController
             $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
             $stmt3 = null;  // Cierra el statement explícitamente
 
-            debug_log('Resultado de SP tareaReparacionActualizarTicketAsignado', $res3);
+            //debug_log('Resultado de SP tareaReparacionActualizarTicketAsignado', $res3);
             
             // Validar que el procedimiento retornó resultados
             if (empty($res3)) {
@@ -5142,7 +5358,7 @@ class TableroCamasController
             $estado = (int)$res3[0]->estado;
             $mensaje = $res3[0]->mensaje ?? 'Sin mensaje';
             
-            debug_log2('Resultado de SP tareaReparacionActualizarTicketAsignado - estado: ' . $estado . ' - mensaje: ' . $mensaje);
+            //debug_log2('Resultado de SP tareaReparacionActualizarTicketAsignado - estado: ' . $estado . ' - mensaje: ' . $mensaje);
 
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -5159,7 +5375,7 @@ class TableroCamasController
             }            
                                    
             // Si todo está bien, confirma la transacción
-            debug_log2('Confirmando transacción');
+            //debug_log2('Confirmando transacción');
             $db->commit();
             $db = null;
 
