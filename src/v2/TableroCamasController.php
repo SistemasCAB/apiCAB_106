@@ -3815,6 +3815,8 @@ class TableroCamasController
         $reservarCama           = $datosQx->reservarCama ?? null;
         $idAplicacion           = $datosQx->idAplicacion ?? null;
 
+        //debug_log2('idCamaOrigen: '.$idCamaOrigen.' - idCamaDestino: '.$idCamaDestino.' - idUsuario'.$idUsuario.' - idServicio:'.$idServicio.' - reservarCama: '.$reservarCama.' - idAplicacion: '.$idAplicacion);
+
         $error = 0;
         $datos = array();
 
@@ -3876,10 +3878,16 @@ class TableroCamasController
                 throw new \Exception('El procedimiento no retornó resultados');
             }
             
-            $estado     = (int)$res[0]->estado;
-            $mensaje    = $res[0]->mensaje ?? 'Sin mensaje';
-            $idCama     = isset($res[0]->idCama) ? (int)$res[0]->idCama : null; // $res[0]->idCama podría no existir o ser null.
-            //debug_log2('estado: '.$estado .' - Mensaje: '.$mensaje.' - idCama: '. $idCama );
+            $estado                 = (int)$res[0]->estado;
+            $mensaje                = $res[0]->mensaje ?? 'Sin mensaje';
+            $idInternacion          = isset($res[0]->idInternacion) ? (int)$res[0]->idInternacion : null;
+            $paciCodigo             = isset($res[0]->paciCodigo) ? (int)$res[0]->paciCodigo : null;
+            $dni                    = isset($res[0]->dni) ? $res[0]->dni : null;
+            $nombreUsuario          = isset($res[0]->nombreUsuario) ? (int)$res[0]->nombreUsuario : null;
+            $idHabitacionOrigen     = isset($res[0]->idHabitacionOrigen) ? (int)$res[0]->idHabitacionOrigen : null;
+            $mensajeReserva         = isset($res[0]->mensajeReserva) ? (int)$res[0]->mensajeReserva : null;
+
+            debug_log2('estado: '.$estado .' - Mensaje: '.$mensaje.' - idInternacion: '. $idInternacion.' - paciCodigo: '.$paciCodigo.' - dni: '.$dni.' - nombreUsuario: '.$nombreUsuario.' - idHabitacionOrigen: '.$idHabitacionOrigen);
             
             // Si el procedimiento devolvió error (estado = 0)
             if ($estado === 0) {
@@ -3896,56 +3904,74 @@ class TableroCamasController
             }
 
 
+            
+            // debug_log2('idCamaOrigen: '.$idCamaOrigen .' - idCamaDestino: '.$idCamaDestino.' - idInternacion: '. $idInternacion.' - paciCodigo: '.$paciCodigo.' - dni: '.$dni);
 
-            // // PASO 2: En Markey cambio el estado de la cama a disponible
-            // require_once '../class/Markey.php';
-            // $datosCamas = new \Markey;
-            // if($datosCamas->cambiarEstado($idCama, 1) <> 1){
-            //     $db->rollBack();
-            //     $db = null;
+            // PASO 2: En Markey cambio de cama al paciente a la cama destino.
+            require_once '../class/Markey.php';
+            $datosCamas = new \Markey;
+
+            if($datosCamas->cambiarCama($idCamaOrigen, $idCamaDestino, $idInternacion, $paciCodigo, $dni) <> 1){
+                $db->rollBack();
+                $db = null;
                 
-            //     $datos = array(
-            //             'estado' => 0, 
-            //             'mensaje' => 'No se pudo cambiar el estado de la cama en Markey. Endpoint: cambiarEstado'
-            //         );
-            //     $response->getBody()->write(json_encode($datos));
-            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-            // }
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => 'No se pudo cambiar de cama al paciente en Markey. Endpoint: cambiarCama'
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            // PASO 3: En Markey cambio el estado de la cama origen según corresponda.
+            if($reservarCama == 1){
+                if($datosCamas->reservarCama($idCamaOrigen, $mensajeReserva) <> 1){
+                    $db->rollBack();
+                    $db = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => 'No se pudo cambiar el estado de la cama origen en Markey. Endpoint: cambiarEstado'
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                if($datosCamas->cambiarEstado($idCamaOrigen, 4) <> 1){
+                    $db->rollBack();
+                    $db = null;
+                    
+                    $datos = array(
+                            'estado' => 0, 
+                            'mensaje' => 'No se pudo cambiar el estado de la cama origen en Markey. Endpoint: cambiarEstado'
+                        );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }
+            
+            
+
+
             
             // Si todo está bien, confirma la transacción
             $db->commit();
             $db = null;
 
 
-            // PASO 3:  Actualizar el estado de las camas de la habitación. Se ejecuta fuera de la transaccion.
-            // este paso se ejecuta porque el estado podría cambiar dependiendo de si hay tareas de limpieza o reparación.
-            // obtengo los datos necesarios para ejecutar la función camasActualizarEstados()
+            // PASO 4:  Actualizar el estado de las camas de la habitación. Se ejecuta fuera de la transaccion.
+            // este paso se ejecuta solo para la cama origen, porque el estado podría cambiar dependiendo de si hay tareas de limpieza o reparación.
+            
 
-            // $db3 = getConeccionCAB();                             
-            // $sql3 = 'EXEC ObtenerDatosUsuarioYHabitacionDesdeReserva @idReserva = :idReserva, @idUsuario = :idUsuario';
-            
-            // $stmt3 = $db3->prepare($sql3);
-            // $stmt3->bindParam(":idReserva", $idReserva);
-            // $stmt3->bindParam(":idUsuario", $idUsuario);
-            // $stmt3->execute();
-            // $res3 = $stmt3->fetchAll(\PDO::FETCH_OBJ);
-            
-            // // guardo los valores devueltos por el procedimiento almacenado ObtenerDatosUsuarioYHabitacion
-            // $dni            = $res3[0]->dni;
-            // $nombreUsuario  = $res3[0]->nombreUsuario;
-            // $idHabitacion   = $res3[0]->idHabitacion;
-            
-            // //debug_log2('idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
-
-            // if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) <> 1) {       
-            //     //debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $usuario . ' - idServicio: ' . $idServicio);            
-            //     $datos = array(
-            //             'estado' => 0, 
-            //             'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
-            //         );
-            //     $response->getBody()->write(json_encode($datos));
-            //     return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-            // }
+            if ($this->camasActualizarEstados($idHabitacionOrigen, $dni, $nombreUsuario, $idServicio) <> 1) {       
+                //debug_log2('Error en funcion camasActualizarEstados(): idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $usuario . ' - idServicio: ' . $idServicio);            
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => 'Ocurrió un error al actualizar el estado de las camas de esta habitación. La operación se canceló.'
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
 
             // else{
             //     debug_log2('Función camasActualizarEstados ejecutada correctamente: idCama: ' . $idCama . ' - idHabitacion: ' . $idHabitacion . ' - dni: ' . $dni . ' - nombreUsuario: ' . $nombreUsuario . ' - idServicio: ' . $idServicio);            
