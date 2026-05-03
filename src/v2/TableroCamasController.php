@@ -1605,6 +1605,80 @@ class TableroCamasController
     
 //______________ ALERTAS _________________________________________________________________________
     
+    // VER ALERTAS
+    public function alertasVer(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $parametros     = $request->getQueryParams();
+        
+        $idCama         = $parametros['idCama'];
+        $idServicio     = $parametros['idServicio'];
+        $filtro         = $parametros['filtro']; // todas, leidas, pendientes
+
+        $error = 0;
+        $datos = array();
+
+        // verifico que los datos obtenidos sean válidos.
+        if($idCama == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // obtengo las alertas de esta cama para este servicio
+        $sql = 'EXEC alertasServicio_ver
+                    @idCama     = :idCama,
+                    @idServicio = :idServicio,
+                    @filtro     = :filtro';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam("idCama", $idCama);
+            $stmt->bindParam("idServicio", $idServicio);
+            $stmt->bindParam("filtro", $filtro);
+            
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $al){
+                $a = new \stdClass();
+                
+                $a->idAlerta        = $al->idAlerta;
+                $a->idTipoAlerta    = $al->idTipoAlerta;
+                $a->tipoAlerta      = $al->tipoAlerta;
+                $a->idCama          = $al->idCama;
+                $a->fecha           = $al->fecha;
+                //$a->leida           = $al->leida;
+
+                array_push($datos,$a);
+                unset($t);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+
+        
+    }
 
     // ALERTAS NUEVA
     public function nuevaAlerta(Request $request, Response $response, $args){
@@ -1826,6 +1900,114 @@ class TableroCamasController
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
+    }
+
+    // APAGAR ALERTAS DE UN SERVICIO
+    public function apagarAlertasServicio(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosAlerta    = json_decode($json);
+   
+        $idCama         = $datosAlerta->idCama ?? null;
+        $idUsuario      = $datosAlerta->idUsuario ?? null;
+        $idServicio     = $datosAlerta->idServicio ?? null;
+        $idAplicacion   = $datosAlerta->idAplicacion ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        // verifico que los datos obtenidos sean válidos.
+        if($idCama == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+        if($idAplicacion == ''){ $error ++; }
+
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+
+            $sql = 'EXEC alertasServicioApagar
+                        @idCama = :idCama,
+                        @idUsuario = :idUsuario,
+                        @idServicio = :idServicio,
+                        @idAplicacion = :idAplicacion';
+
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idCama", $idCama);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":idServicio", $idServicio);
+            $stmt->bindParam(":idAplicacion", $idAplicacion);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
+            $estado = (int)$res[0]->estado;
+            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array('estado' => 0, 'mensaje' => $mensaje);
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            $db->commit();
+            $db = null;
+
+            $datos = array(
+                    'estado' => $estado, 
+                    'mensaje' => $mensaje
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        } 
     }
 
 

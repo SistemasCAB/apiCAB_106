@@ -145,8 +145,10 @@ return function (App $app) {
 
 
             // ALERTAS           
+            $g->get('/alertas', '\App\V2\TableroCamasController:alertasVer');
             $g->post('/nuevaAlerta', '\App\V2\TableroCamasController:nuevaAlerta');
             $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
+            $g->post('/apagarAlertasServicio', '\App\V2\TableroCamasController:apagarAlertasServicio');
             $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
 
             // AISLAMIENTOS
