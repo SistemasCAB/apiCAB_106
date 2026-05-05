@@ -161,6 +161,8 @@ return function (App $app) {
             $g->post('/altaDefinitiva', '\App\V2\TableroCamasController:AltaDefinitiva');
             $g->get('/tiposAltasMedicas', '\App\V2\TableroCamasController:tiposAltasMedicas');
             $g->post('/altaProbable', '\App\V2\TableroCamasController:altaProbableCrear');
+            $g->get('/altaProbable', '\App\V2\TableroCamasController:altaProbable_ver');
+            $g->delete('/altaProbable', '\App\V2\TableroCamasController:altaProbable_eliminar');
 
             // RESERVAS
             $g->get('/reservas', '\App\V2\TableroCamasController:reservasVerUna');
@@ -181,6 +183,9 @@ return function (App $app) {
 
             // CIRUGIAS
             $g->get('/cirugiasdeldia', '\App\V2\TableroCamasController:cirugiasdeldia');
+
+            // INTERNACION
+            $g->get('/tiposinternacion', '\App\V2\TableroCamasController:tiposinternacion');
 
 
             // TICKETS

@@ -2309,8 +2309,9 @@ class TableroCamasController
         1- Obtiene la fecha de alta médica y el tipo de alta médica desde la tabla camasMarkey.
         2- Registra el alta en el sistema Markey.
         3- Registra los datos del alta en la tabla CAB.dbo.internacionesAltas
-        4- Actualiza el estado de las camas de la habitación en Markey, en la tabla camasMarkey y en la tabla camas, dependiendo de las condiciones de la cama
-            (si está en aislamiento, si hay tareas de reparación que bloquean la habitación o la cama, si está limpia o no, etc).
+        4- Actualiza el estado de las camas de la habitación en Markey, en la tabla camasMarkey y en la tabla camas, 
+           dependiendo de las condiciones de la cama
+           (si está en aislamiento, si hay tareas de reparación que bloquean la habitación o la cama, si está limpia o no, etc).
 
         Este método no actualiza todas las camas del sistema obteniendo los datos de cada cama desde Markey y copiandola a la tabla CAB.dbo.camasMarkey.
         */
@@ -2459,6 +2460,171 @@ class TableroCamasController
         }
     }
 
+    // CAMAS ALTA DEFINITIVA
+    public function AltaDefinitiva_v2(Request $request, Response $response, $args){
+        /*
+        Este método se ejecuta cuando el enfermero da el alta definitiva al paciente desde el Tablero de Camas.
+        El método hace lo siguiente:
+        1- Obtiene la fecha de alta médica y el tipo de alta médica desde la tabla camasMarkey.
+        2- Registra el alta en el sistema Markey.
+        3- Registra los datos del alta en la tabla CAB.dbo.internacionesAltas
+        4- Actualiza el estado de las camas de la habitación en Markey, en la tabla camasMarkey y en la tabla camas, 
+           dependiendo de las condiciones de la cama
+           (si está en aislamiento, si hay tareas de reparación que bloquean la habitación o la cama, si está limpia o no, etc).
+
+        Este método no actualiza todas las camas del sistema obteniendo los datos de cada cama desde Markey y copiandola a la tabla CAB.dbo.camasMarkey.
+        */
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosCama      = json_decode($json); // array con los parámetros recibidos.
+   
+
+        $idCama                 = $datosCama->idCama ?? null;
+        $idHabitacion           = $datosCama->idHabitacion ?? null;        
+        $idInternacion          = $datosCama->idInternacion ?? null;
+        $paciCodigo             = $datosCama->paciCodigo ?? null;
+        $fechaAltaDefinitiva    = $datosCama->fechaAltaDefinitiva ?? null;        
+        $idUsuario              = $datosCama->idUsuario ?? null;
+        $idAplicacion           = $datosCama->idAplicacion ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idCama == ''){ $error ++; }
+        if($idHabitacion == ''){ $error ++; }
+        if($idInternacion == ''){ $error ++; }
+        if($paciCodigo == ''){ $error ++; }
+        if($fechaAltaDefinitiva == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; }
+        if($idAplicacion == ''){ $error ++; }
+
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        if(!isset($tokenAcceso[0])){
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+            
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);            
+        }
+
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+
+            // 1- Obtengo la fecha de alta medica y el tipo de alta desde la tabla camasmarkey
+            $sql = 'EXEC camasVerUna @idCama = :idCama, @idServicio = :idServicio';
+            $db = getConeccionCAB();
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam('idCama',$idCama);
+            $stmt->bindParam('idServicio',$idServicio);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+
+            $fechaAltaMedica = date('Y-d-m H:i:s', strtotime($resultado[0]->fechaAltaMedica));
+            $fechaEgreso = $fechaAltaDefinitiva;
+            $fechaAltaDefinitiva = date('Y-d-m H:i:s', strtotime($fechaAltaDefinitiva));
+
+            $idTipoAltaMedica = $resultado[0]->idTipoAltaMedica;
+
+            
+
+            // 2- Registra el alta en el sistema Markey.
+            require_once '../class/Markey.php';
+            $datosCamas = new \Markey;
+            $resultadoAlta = $datosCamas->altaDefinitiva($paciCodigo, $idTipoAltaMedica, $idInternacion, $dni, $fechaEgreso);
+
+            if($resultadoAlta == 1){
+                //3- Registra los datos del alta en la tabla CAB.dbo.internacionesAltas
+                $sql = 'DECLARE	@return_value int
+                        EXEC	@return_value = internacionRegistrarAltaDefinitiva
+                                @inteCodigo = :inteCodigo,
+                                @paciCodigo= :paciCodigo,
+                                @fechaAltaMedica = :fechaAltaMedica,
+                                @idTipoAltaMedica = :idTipoAltaMedica,
+                                @dni = :dni,
+                                @nombreUsuario = :nombreUsuario,
+                                @altaEfectiva = :altaEfectiva
+                        
+                        SELECT	@return_value as estado';
+                $db = getConeccionCAB();
+                $stmt = $db->prepare($sql);
+                $stmt->bindParam('inteCodigo',$idInternacion);
+                $stmt->bindParam('paciCodigo',$paciCodigo);
+                $stmt->bindParam('fechaAltaMedica',$fechaAltaMedica);
+                $stmt->bindParam('idTipoAltaMedica',$idTipoAltaMedica);
+                $stmt->bindParam('dni',$dni);
+                $stmt->bindParam('nombreUsuario',$nombreUsuario);
+                $stmt->bindParam('altaEfectiva',$fechaAltaDefinitiva);
+                $stmt->execute();
+                $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+                $db = null;
+
+                if($resultado[0]->estado == 1){
+                    // 4- Actualiza el estado de las camas de la habitación en Markey y en la tabla camasMarkey, dependiendo de las condiciones de la cama
+                    // (si está en aislamiento, si hay tareas de reparación que bloquean la habitación o la cama, si está limpia o no, etc).
+                    // para esto llamo al método camasActualizarEstados que hace exactamente eso.
+                    if ($this->camasActualizarEstados($idHabitacion, $dni, $nombreUsuario, $idServicio) == 1) {
+                        // el estado de las camas se actualizó correctamente.
+                        $datos = array(
+                            "estado" => 200,
+                            "mensaje" => "El alta definitiva fue registrada correctamente."
+                        );
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(200);                                
+                    }else{
+                        $datos = array(
+                            "estado" => 500,
+                            "mensaje" => "Error al actualizar el estado de las camas. (camasActualizarEstados() devolvió un error.)"
+                        );
+                        $response->getBody()->write(json_encode($datos));
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                    }                            
+                }else{
+                    $datos = array(
+                        "estado" => 500,
+                        "mensaje" => "Error. El alta se registró en Markey pero no se registró en el Tablero de Camas."
+                    );
+                    $response->getBody()->write(json_encode($datos));
+                    return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+                }
+            }else{
+                $datos = array(
+                    "estado" => 500,
+                    "mensaje" => "Error al registrar la alta en Markey."
+                );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+
+        }catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    }
+
     // TIPOS DE ALTAS - VER
     public function tiposAltasMedicas(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');        
@@ -2602,6 +2768,172 @@ class TableroCamasController
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
         }
     }
+
+    // ALTA PROBABLE - VER
+    public function altaProbable_ver(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');    
+        $idInternacion  = $request->getQueryParams()['idInternacion'] ?? null;    
+
+        $error = 0;
+        $datos = array();
+
+        if($idInternacion == ''){$error ++;};
+
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        if(!isset($tokenAcceso[0])){
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+            
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);            
+        }
+
+        try {
+            $sql = 'EXEC altaProbable_ver @idInternacion = :idInternacion';
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->bindValue(':idInternacion', $idInternacion);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $alta){
+                $a = new \stdClass();
+                $a->idInternacion       = (int)$alta->idInternacion;
+                $a->fechaAltaProbable   = $alta->fechaAltaProbable;
+                $a->idTipoAltaProbable  = $alta->idTipoAltaProbable;
+                $a->tipoAltaProbable    = $alta->tipoAltaMedica;
+                $a->creadoPorDni        = $alta->creadoPorDni;
+                $a->creadoPorNombre     = $alta->creadoPorNombre;
+                $a->creadoFecha         = $alta->creadoFecha;
+
+                array_push($datos,$a);
+                unset($a);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        }catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }                      
+    }
+
+    // ALTA PROBABLE - ELIMINAR
+    public function altaProbable_eliminar(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosAlta      = json_decode($json); // array con los parámetros recibidos.
+   
+        $idInternacion      = $datosAlta->idInternacion ?? null;
+        $idUsuario          = $datosAlta->idUsuario ?? null;
+        $idAplicacion       = $datosAlta->idAplicacion ?? null;
+        $idServicio         = $datosAlta->idServicio ?? null;
+
+        $error = 0;
+        $datos = array();
+
+        if($idInternacion == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; }
+        if($idAplicacion == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+        
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        if(!isset($tokenAcceso[0])){
+            //acceso denegado. No envió el token de acceso
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+            
+        if(verificarToken($tokenAcceso[0]) === false){
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);            
+        }
+
+        try {
+            $db = getConeccionCAB();
+            $db->beginTransaction();
+
+            $sql = 'EXEC altaProbable_eliminar 
+                        @idInternacion = :idInternacion,
+                        @idUsuario = :idUsuario,
+                        @idAplicacion = :idAplicacion,
+                        @idServicio = :idServicio';
+            $stmt = $db->prepare($sql);
+            $stmt->bindValue(':idInternacion', $idInternacion);
+            $stmt->bindValue(':idUsuario', $idUsuario);
+            $stmt->bindValue(':idAplicacion', $idAplicacion);
+            $stmt->bindValue(':idServicio', $idServicio);
+            $stmt->execute();
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $stmt = null;  // Cierra el statement explícitamente
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            $estado     = (int)$res[0]->estado;
+            $mensaje    = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array(
+                        'estado' => 0, 
+                        'mensaje' => $mensaje
+                    );
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            // Si todo está bien, confirma la transacción
+            $db->commit();
+            $db = null;
+
+            $datos = array(
+                    'estado' => $estado, 
+                    'mensaje' => $mensaje
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }         
+    }
+
 
 
     
@@ -5918,6 +6250,61 @@ class TableroCamasController
     } 
 
 
+
+//______________ INTERNACION ______________________________________________________________________
+
+    // TIPOS DE INTERNACION
+    public function tiposinternacion(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');        
+        $datos = array();
+
+        // verifico que haya recibido el tokenAcceso
+        if(!isset($tokenAcceso[0])){
+            $datos = array('estado' => 0,'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Verifico si el token enviado es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // busco las cirugías del día
+        $sql = 'EXEC internacionTipoVer';
+        try {
+            $db = getConeccionCAB(); 
+            $stmt = $db->prepare($sql);
+            $stmt->execute();
+            $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            $db = null;
+
+            foreach($resultado as $inte){
+                $i = new \stdClass();
+                
+                $i->idTipoInternacion  = $inte->idTipoInternacion;
+                $i->tipoInternacion    = $inte->tipoInternacion;
+
+                array_push($datos,$i);
+                unset($i);
+            }
+
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        } catch(\PDOException $e) {
+            $datos = array(
+                'estado' => 0,
+                'mensaje' => $e->getMessage()
+            );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+        }
+    } 
+
+    
 
     
 //______________ TICKETS ________________________________________________________________________
