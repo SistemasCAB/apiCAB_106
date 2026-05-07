@@ -121,8 +121,9 @@ function limpiarAlertasHistoriasCama($idCama){
 }
 
 function crearAlertaCamaDisponible($idCama){
+    // La alerta se creará solo si hay algún servicio que la atienda.
     $sql = 'declare @mensaje varchar(255)
-            EXEC alertaNueva @idCama = :idCama, @idTipoAlerta = 13, @mensaje = @mensaje OUTPUT';
+            EXEC alertaNueva @idCama = :idCama, @idTipoAlerta = 12, @mensaje = @mensaje OUTPUT';
     $db = getConeccionCAB();
     $stmt = $db->prepare($sql);
     $stmt->bindParam(":idCama", $idCama, PDO::PARAM_INT);
