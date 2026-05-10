@@ -150,6 +150,7 @@ return function (App $app) {
             $g->post('/apagarAlertas', '\App\V2\TableroCamasController:apagarAlertas');
             $g->post('/apagarAlertasServicio', '\App\V2\TableroCamasController:apagarAlertasServicio');
             $g->post('/apagarAlertasCamasDisponibles', '\App\V2\TableroCamasController:apagarAlertasCamasDisponibles');
+            $g->post('/apagarAlertasLote', '\App\V2\TableroCamasController:apagarAlertasLote');
 
             // AISLAMIENTOS
             $g->get('/aislamientosDisponibles/{idInternacion}', '\App\V2\TableroCamasController:obtenerAislamientosDisponibles');

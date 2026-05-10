@@ -1621,7 +1621,7 @@ class TableroCamasController
         }
 
         // obtengo las alertas de esta cama para este servicio
-        $sql = 'EXEC alertasServicio_ver_v2
+        $sql = 'EXEC alertasServicio_ver_v3
                     @idCama     = :idCama,
                     @idServicio = :idServicio,
                     @filtro     = :filtro';
@@ -1811,78 +1811,100 @@ class TableroCamasController
     public function apagarAlertas(Request $request, Response $response, $args){
         $tokenAcceso    = $request->getHeader('TokenAcceso');
         $idCama         = $request->getQueryParams()['idCama'] ?? null;
-        $leidaPorDni    = $request->getQueryParams()['leidaPorDni'] ?? null;
-        $leidaPorNombre = $request->getQueryParams()['leidaPorNombre'] ?? null;
+        $idServicio     = $request->getQueryParams()['idServicio'] ?? null;
+        $idUsuario      = $request->getQueryParams()['idUsuario'] ?? null;
 
         $error = 0;
         $datos = array();
-        $r = new \stdClass();
 
-        // verifico que los datos obtenidos sean válidos.
-        if(!isset($idCama) or (!isset($leidaPorDni)) or (!isset($leidaPorNombre))){
-            $error ++;
-        }
-
-        if(isset($tokenAcceso[0])){
-            if(verificarToken($tokenAcceso[0]) === true){                
-                // acceso permitido
-                if($error == 0){
-                    $sql = 'DECLARE	@return_value int, @mensaje varchar(255)
-                            EXEC	@return_value = alertasApagar
-                                    @idCama = '.$idCama.',
-                                    @leidaPorDni = '.$leidaPorDni.',
-                                    @leidaPorNombre = "'.$leidaPorNombre.'",
-                                    @mensaje = @mensaje OUTPUT
-                            
-                            SELECT	@return_value as estado, @mensaje as mensaje';
-                    
-                    try {
-                        $stmt = getConeccionCAB()->query($sql);
-                        $resultado = $stmt->fetchAll(\PDO::FETCH_OBJ);
-                        $db = null;
-                        $a = new \stdClass();
-                        $a = $resultado[0];
-
-                        $u = new \stdClass();
-                        $u->estado = (int)$a->estado;
-                        $u->mensaje = $a->mensaje;
-                        $datos = array('estado' => $u->estado, 'mensaje' => $u->mensaje);
-                        if($u->estado == 1){
-                            $response->getBody()->write(json_encode($datos));
-                            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
-                        }else{
-                            $response->getBody()->write(json_encode($datos));
-                            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);
-                        }
-                        
-                        unset($u);
-                        unset($a);
-                    } catch(\PDOException $e) {
-                        $u = new \stdClass();
-                        $est = 0;
-                        $u->estado = (int)$est;
-                        $u->mensaje = $e->getMessage();
-                        $datos = array('estado' => $u->estado, 'mensaje' => $u->mensaje);
-                        unset($u);
-                        $response->getBody()->write(json_encode($datos));
-                        return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
-                    }
-                }else{
-                    $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
-                    $response->getBody()->write(json_encode($datos));
-                    return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-                }
-            }else{
-                // acceso denegado
-                $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
-                $response->getBody()->write(json_encode($datos));
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
-            }
-        }else{
-            //acceso denegado. No envió el token de acceso
+        if($idCama == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+        if($idUsuario == ''){ $error ++; }    
+        
+        
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
             $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
             $response->getBody()->write(json_encode($datos));
             return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        try {
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+
+            $sql = 'EXEC alertasApagar
+                        @idCama = :idCama,            
+                        @idServicio = :idServicio,
+                        @idUsuario = :idUsuario';
+
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idCama", $idCama);
+            $stmt->bindParam(":idServicio", $idServicio);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            // guardo los valores devueltos por el procedimiento almacenado alertasApagarLote
+            $estado = (int)$res[0]->estado;
+            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array('estado' => 0, 'mensaje' => $mensaje);
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            $db->commit();
+            $db = null;
+
+            $datos = array(
+                    'estado' => $estado, 
+                    'mensaje' => $mensaje
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
         }
     }
 
@@ -1954,6 +1976,125 @@ class TableroCamasController
             }
             
             // guardo los valores devueltos por el procedimiento almacenado tarea_iniciarFinalizarCancelar
+            $estado = (int)$res[0]->estado;
+            $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
+            
+            // Si el procedimiento devolvió error (estado = 0)
+            if ($estado === 0) {
+                // Revierte la transacción
+                $db->rollBack();
+                $db = null;
+                
+                $datos = array('estado' => 0, 'mensaje' => $mensaje);
+                $response->getBody()->write(json_encode($datos));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
+            }
+
+            $db->commit();
+            $db = null;
+
+            $datos = array(
+                    'estado' => $estado, 
+                    'mensaje' => $mensaje
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+        } catch (\Exception $e) {
+            // Cualquier otro error
+            if ($db && $db->inTransaction()) {
+                $db->rollBack();
+                $db = null; 
+            }
+            
+            $datos = array(
+                    'estado' => 0, 
+                    'mensaje' => 'Error: ' . $e->getMessage()
+                );
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);                       
+        } 
+    }
+
+    // APAGAR ALERTAS LOTE
+    public function apagarAlertasLote(Request $request, Response $response, $args){
+        $tokenAcceso    = $request->getHeader('TokenAcceso');
+        $json           = $request->getBody();
+        $datosAlerta    = json_decode($json);
+   
+        $idUsuario      = $datosAlerta->idUsuario ?? null;
+        $idAplicacion   = $datosAlerta->idAplicacion ?? null;
+        $idAlertas      = $datosAlerta->idAlertas ?? null;
+        $idServicio     = $datosAlerta->idServicio ?? null;
+
+        //debug_log2('Esto aquí');
+        //debug_log('Apagar alertas: ',$idAlertas);
+
+        $error = 0;
+        $datos = array();
+
+        // verifico que los datos obtenidos sean válidos.
+        if($idUsuario == ''){ $error ++; }
+        if($idAplicacion == ''){ $error ++; }
+        if($idAlertas == ''){ $error ++; }
+        if($idServicio == ''){ $error ++; }
+
+        if (empty($idAlertas) || !is_array($idAlertas)) {
+            $datos = array('estado' => 0, 'mensaje' => 'Se requiere un array de idAlertas que serán apagadas.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(400);        
+        }
+
+        // si no envió el tokenAcceso
+        if(!isset($tokenAcceso[0])){            
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // Si el token enviado no es correcto
+        if(verificarToken($tokenAcceso[0]) === false){                
+            // acceso denegado
+            $datos = array('estado' => 0, 'mensaje' => 'Acceso denegado.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+
+        // si los parámetros recibos no son válidos
+        if ($error > 0) {
+            $datos = array('estado' => 0, 'mensaje' => 'Los parámetros recibidos no son válidos.');
+            $response->getBody()->write(json_encode($datos));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(403);
+        }
+        
+        try {
+            $alertasApagar = implode(',', array_map('intval', $idAlertas));
+
+            $db = getConeccionCAB();
+            
+            $db->beginTransaction();
+
+            $sql = 'EXEC alertasApagarLote
+                        @idUsuario = :idUsuario,
+                        @idAplicacion = :idAplicacion,
+                        @idAlertas = :idAlertas,
+                        $idServicio = :idServicio';
+
+            $stmt = $db->prepare($sql);
+            $stmt->bindParam(":idUsuario", $idUsuario);
+            $stmt->bindParam(":idAplicacion", $idAplicacion);
+            $stmt->bindParam(":idAlertas", $alertasApagar);
+            $stmt->bindParam(":idServicio", $idServicio);
+            $stmt->execute();
+            
+            $res = $stmt->fetchAll(\PDO::FETCH_OBJ);
+            
+            // Validar que el procedimiento retornó resultados
+            if (empty($res)) {
+                throw new \Exception('El procedimiento no retornó resultados');
+            }
+            
+            // guardo los valores devueltos por el procedimiento almacenado alertasApagarLote
             $estado = (int)$res[0]->estado;
             $mensaje = $res[0]->mensaje ?? 'Sin mensaje';
             
